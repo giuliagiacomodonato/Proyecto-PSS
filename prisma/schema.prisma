@@ -107,7 +107,6 @@ model Cancha {
   tipo                TipoCancha        // Tipo de cancha: FUTBOL_5, FUTBOL, BASQUET
   ubicacion           String            // Máximo 100 caracteres
   precio              Int               // Valor numérico entero positivo
-  capacidad           Int               // Solo números enteros
   horariosInicio      String            // Formato HH:MM
   horariosFin         String            // Formato HH:MM
   
