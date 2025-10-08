@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum para los roles de usuario
+enum RolUsuario {
+  ADMIN
+  SOCIO
+  ENTRENADOR
+}
+
+// Enum para tipo de socio
+enum TipoSocio {
+  INDIVIDUAL
+  FAMILIAR
+}
+
+// Enum para días de la semana
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+}
+
+// Enum para tipos de cancha
+enum TipoCancha {
+  FUTBOL_5
+  FUTBOL
+  BASQUET
+}
+
+// Tabla única de usuarios con todos los roles
+model Usuario {
+  id               Int         @id @default(autoincrement())
+  rol              RolUsuario
+  nombre           String      // Solo caracteres
+  dni              String      @unique // 7-8 dígitos
+  fechaNacimiento  DateTime
+  email            String      @unique // Campo con '@' necesario
+  telefono         String      // Solo números
+  contraseña       String      // Mínimo 8 caracteres con validaciones
+  fechaAlta        DateTime    @default(now())
+  
+  // Campos específicos para SOCIO
+  tipoSocio        TipoSocio?  // Solo para socios
+  direccion        String?     // Solo para socios
+  familiarId       Int?        // Referencia a otro socio familiar
+  familiar         Usuario?    @relation("SocioFamiliar", fields: [familiarId], references: [id])
+  familiares       Usuario[]   @relation("SocioFamiliar")
+  
+  // Campos específicos para ENTRENADOR
+  practicaDeportivaId Int?     // Solo para entrenadores
+  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
+  
+  // Relaciones
+  turnos           Turno[]     // Turnos reservados (solo socios)
+  
+  @@map("usuarios")
+}
+
+// Tabla de prácticas deportivas
+model PracticaDeportiva {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @unique // Solo caracteres
+  descripcion String    // Máximo 150 caracteres
+  precio      Int       // Solo dígitos
+  cupo        Int
+  // Relaciones
+  horarios    Horario[]
+  entrenadores Usuario[]
+  canchas     Cancha[]
+  
+  @@map("practicas_deportivas")
+}
+
+// Tabla de horarios para prácticas deportivas
+model Horario {
+  id                  Int               @id @default(autoincrement())
+  dia                 DiaSemana
+  horaInicio          String            // Formato HH:MM
+  horaFin             String            // Formato HH:MM
+  practicaDeportivaId Int
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+  
+  @@map("horarios")
+}
+
+// Tabla de canchas
+model Cancha {
+  id                  Int               @id @default(autoincrement())
+  numero              Int               @unique // Solo números
+  tipo                TipoCancha        // Tipo de cancha: FUTBOL_5, FUTBOL, BASQUET
+  ubicacion           String            // Máximo 100 caracteres
+  precio              Int               // Valor numérico entero positivo
+  capacidad           Int               // Solo números enteros
+  horariosInicio      String            // Formato HH:MM
+  horariosFin         String            // Formato HH:MM
+  
+  // Relaciones
+  practicaDeportivaId Int?
+  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
+  turnos              Turno[]
+  
+  @@map("canchas")
+}
+
+// Tabla de turnos
+model Turno {
+  id            Int      @id @default(autoincrement())
+  canchaId      Int
+  cancha        Cancha   @relation(fields: [canchaId], references: [id], onDelete: Cascade)
+  horaInicio    String   // Formato HH:MM
+  fecha         DateTime
+  reservado     Boolean  @default(false)
+  usuarioSocioId Int?    // Puede ser NULL si no está reservado
+  usuarioSocio  Usuario? @relation(fields: [usuarioSocioId], references: [id])
+  
+  @@map("turnos")
+}
