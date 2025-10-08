@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-// Enum para tipos de cancha
-const TipoCancha = {
-  FUTBOL_5: 'FUTBOL_5',
-  FUTBOL: 'FUTBOL',
-  BASQUET: 'BASQUET'
-} as const
-
-type TipoCanchaType = typeof TipoCancha[keyof typeof TipoCancha]
+import { TipoCancha } from '@prisma/client'
 
 interface CanchaData {
   nombre: string
-  tipo: TipoCanchaType
+  tipo: TipoCancha
   ubicacion: string
   horarios: { inicio: string; fin: string }[]  // Array de rangos horarios
   precio: number
