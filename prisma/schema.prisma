@@ -103,19 +103,29 @@ model Horario {
 // Tabla de canchas
 model Cancha {
   id                  Int               @id @default(autoincrement())
-  numero              Int               @unique // Solo números
+  nombre              String            @unique // Nombre de la cancha
   tipo                TipoCancha        // Tipo de cancha: FUTBOL_5, FUTBOL, BASQUET
   ubicacion           String            // Máximo 100 caracteres
   precio              Int               // Valor numérico entero positivo
-  horariosInicio      String            // Formato HH:MM
-  horariosFin         String            // Formato HH:MM
   
   // Relaciones
   practicaDeportivaId Int?
   practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
+  horarios            HorarioCancha[]   // Múltiples rangos horarios
   turnos              Turno[]
   
   @@map("canchas")
+}
+
+// Tabla de horarios de canchas (múltiples rangos por cancha)
+model HorarioCancha {
+  id          Int     @id @default(autoincrement())
+  canchaId    Int
+  cancha      Cancha  @relation(fields: [canchaId], references: [id], onDelete: Cascade)
+  horaInicio  String  // Formato HH:MM
+  horaFin     String  // Formato HH:MM
+  
+  @@map("horarios_cancha")
 }
 
 // Tabla de turnos
