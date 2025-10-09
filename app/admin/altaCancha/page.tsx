@@ -3,39 +3,61 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
+import Toast, { ToastType } from '@/app/components/Toast'
+import { Plus, X } from 'lucide-react'
+
+interface Horario {
+  inicio: string
+  fin: string
+}
 
 interface FormData {
-  numero: string
+  nombre: string
   tipo: string
   ubicacion: string
-  horariosInicio: string
-  horariosFin: string
   precio: string
 }
 
 interface FormErrors {
-  numero?: string
+  nombre?: string
   tipo?: string
   ubicacion?: string
-  horariosInicio?: string
-  horariosFin?: string
+  horarios?: string
   precio?: string
+}
+
+interface ToastState {
+  isOpen: boolean
+  message: string
+  type: ToastType
 }
 
 export default function AltaCanchaPage() {
   const router = useRouter()
   const [formData, setFormData] = useState<FormData>({
-    numero: '',
+    nombre: '',
     tipo: '',
     ubicacion: '',
-    horariosInicio: '',
-    horariosFin: '',
     precio: ''
   })
+  const [horarios, setHorarios] = useState<Horario[]>([{ inicio: '', fin: '' }])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [tiposCancha, setTiposCancha] = useState<string[]>([])
   const [loadingTipos, setLoadingTipos] = useState(true)
+  const [toast, setToast] = useState<ToastState>({
+    isOpen: false,
+    message: '',
+    type: 'success'
+  })
+
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ isOpen: true, message, type })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, isOpen: false }))
+  }
 
   // Cargar tipos de cancha desde la API
   useEffect(() => {
@@ -47,7 +69,7 @@ export default function AltaCanchaPage() {
         setTiposCancha(data.tipos)
       } catch (error) {
         console.error('Error:', error)
-        alert('Error al cargar los tipos de cancha')
+        showToast('Error al cargar los tipos de cancha', 'error')
       } finally {
         setLoadingTipos(false)
       }
@@ -75,6 +97,30 @@ export default function AltaCanchaPage() {
 
   const opcionesHorarios = generarOpcionesHorarios()
 
+  // Agregar nuevo horario
+  const agregarHorario = () => {
+    setHorarios([...horarios, { inicio: '', fin: '' }])
+  }
+
+  // Eliminar horario
+  const eliminarHorario = (index: number) => {
+    if (horarios.length > 1) {
+      const nuevosHorarios = horarios.filter((_, i) => i !== index)
+      setHorarios(nuevosHorarios)
+    }
+  }
+
+  // Actualizar horario específico
+  const actualizarHorario = (index: number, campo: 'inicio' | 'fin', valor: string) => {
+    const nuevosHorarios = [...horarios]
+    nuevosHorarios[index][campo] = valor
+    setHorarios(nuevosHorarios)
+    // Limpiar error si existe
+    if (errors.horarios) {
+      setErrors(prev => ({ ...prev, horarios: undefined }))
+    }
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -93,10 +139,8 @@ export default function AltaCanchaPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!formData.numero.trim()) {
-      newErrors.numero = 'El número de cancha es requerido'
-    } else if (!/^\d+$/.test(formData.numero)) {
-      newErrors.numero = 'El número debe contener solo dígitos'
+    if (!formData.nombre.trim()) {
+      newErrors.nombre = 'El nombre de cancha es requerido'
     }
 
     if (!formData.tipo) {
@@ -109,16 +153,26 @@ export default function AltaCanchaPage() {
       newErrors.ubicacion = 'La ubicación no puede exceder 100 caracteres'
     }
 
-    if (!formData.horariosInicio || !formData.horariosFin) {
-      newErrors.horariosInicio = 'Debe seleccionar horario de inicio y fin'
-    } else if (formData.horariosInicio === formData.horariosFin) {
-      newErrors.horariosInicio = 'El horario de inicio no puede ser igual al horario de fin'
-    } else {
-      // Validar que el horario de inicio sea anterior al de fin
-      const horaInicio = parseInt(formData.horariosInicio.split(':')[0])
-      const horaFin = parseInt(formData.horariosFin.split(':')[0])
+    // Validar horarios
+    let horariosValidos = true
+    for (let i = 0; i < horarios.length; i++) {
+      const horario = horarios[i]
+      if (!horario.inicio || !horario.fin) {
+        newErrors.horarios = 'Todos los horarios deben tener inicio y fin'
+        horariosValidos = false
+        break
+      }
+      if (horario.inicio === horario.fin) {
+        newErrors.horarios = 'El horario de inicio no puede ser igual al de fin'
+        horariosValidos = false
+        break
+      }
+      const horaInicio = parseInt(horario.inicio.split(':')[0])
+      const horaFin = parseInt(horario.fin.split(':')[0])
       if (horaInicio >= horaFin) {
-        newErrors.horariosInicio = 'El horario de inicio debe ser anterior al horario de fin'
+        newErrors.horarios = 'El horario de inicio debe ser anterior al de fin'
+        horariosValidos = false
+        break
       }
     }
 
@@ -150,11 +204,10 @@ export default function AltaCanchaPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          numero: parseInt(formData.numero),
+          nombre: formData.nombre,
           tipo: formData.tipo,
           ubicacion: formData.ubicacion,
-          horariosInicio: formData.horariosInicio,
-          horariosFin: formData.horariosFin,
+          horarios: horarios.map(h => ({ inicio: h.inicio, fin: h.fin })),
           precio: parseInt(formData.precio)
         }),
       })
@@ -164,22 +217,21 @@ export default function AltaCanchaPage() {
         throw new Error(errorData.message || 'Error al registrar la cancha')
       }
 
-      // Redirigir a una página de éxito o mostrar mensaje
-      alert('¡Cancha registrada exitosamente!')
+      // Mostrar toast de éxito
+      showToast('¡Registro Exitoso!', 'success')
       
       // Limpiar formulario
       setFormData({
-        numero: '',
+        nombre: '',
         tipo: '',
         ubicacion: '',
-        horariosInicio: '',
-        horariosFin: '',
         precio: ''
       })
+      setHorarios([{ inicio: '', fin: '' }])
       
     } catch (error) {
       console.error('Error:', error)
-      alert(error instanceof Error ? error.message : 'Error al registrar la cancha')
+      showToast(error instanceof Error ? error.message : 'Error al registrar la cancha', 'error')
     } finally {
       setLoading(false)
     }
@@ -213,21 +265,21 @@ export default function AltaCanchaPage() {
           {/* Primera fila: Nombre */}
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <label htmlFor="numero" className="block text-sm font-medium text-gray-600 mb-2">
+              <label htmlFor="nombre" className="block text-sm font-medium text-gray-600 mb-2">
                 Nombre de Cancha <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                id="numero"
-                name="numero"
-                value={formData.numero}
+                id="nombre"
+                name="nombre"
+                value={formData.nombre}
                 onChange={handleInputChange}
                 placeholder="Ingrese el nombre"
                 className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.numero ? 'border-red-500' : ''
+                  errors.nombre ? 'border-red-500' : ''
                 }`}
               />
-              {errors.numero && <p className="mt-1 text-sm text-red-500">{errors.numero}</p>}
+              {errors.nombre && <p className="mt-1 text-sm text-red-500">{errors.nombre}</p>}
             </div>
           </div>
 
@@ -282,54 +334,7 @@ export default function AltaCanchaPage() {
             </div>
           </div>
 
-          {/* Tercera fila: Horarios */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              Horarios disponibles <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Horario Inicio */}
-              <select
-                id="horariosInicio"
-                name="horariosInicio"
-                value={formData.horariosInicio}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
-                  errors.horariosInicio ? 'border-red-500' : ''
-                }`}
-                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
-              >
-                <option value="">Seleccione horario de inicio</option>
-                {opcionesHorarios.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Horario Fin */}
-              <select
-                id="horariosFin"
-                name="horariosFin"
-                value={formData.horariosFin}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
-                  errors.horariosFin ? 'border-red-500' : ''
-                }`}
-                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
-              >
-                <option value="">Seleccione horario de fin</option>
-                {opcionesHorarios.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {errors.horariosInicio && <p className="mt-1 text-sm text-red-500">{errors.horariosInicio}</p>}
-          </div>
-
-          {/* Cuarta fila: Precio */}
+          {/* Tercera fila: Precio */}
           <div className="grid grid-cols-1 gap-6">
             <div>
               <label htmlFor="precio" className="block text-sm font-medium text-gray-600 mb-2">
@@ -348,6 +353,77 @@ export default function AltaCanchaPage() {
               />
               {errors.precio && <p className="mt-1 text-sm text-red-500">{errors.precio}</p>}
             </div>
+          </div>
+
+          {/* Cuarta fila: Horarios múltiples */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">
+              Horarios disponibles <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-4">
+              {horarios.map((horario, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <div className="flex-1 grid grid-cols-2 gap-4">
+                    {/* Horario Inicio */}
+                    <select
+                      value={horario.inicio}
+                      onChange={(e) => actualizarHorario(index, 'inicio', e.target.value)}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                        errors.horarios ? 'border-red-500' : ''
+                      }`}
+                      style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
+                    >
+                      <option value="">Hora Inicio</option>
+                      {opcionesHorarios.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Horario Fin */}
+                    <select
+                      value={horario.fin}
+                      onChange={(e) => actualizarHorario(index, 'fin', e.target.value)}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                        errors.horarios ? 'border-red-500' : ''
+                      }`}
+                      style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
+                    >
+                      <option value="">Hora Fin</option>
+                      {opcionesHorarios.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Botón eliminar (solo si hay más de un horario) */}
+                  {horarios.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => eliminarHorario(index)}
+                      className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Eliminar horario"
+                    >
+                      <X size={20} />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {/* Botón agregar horario */}
+              <button
+                type="button"
+                onClick={agregarHorario}
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus size={20} />
+                Agregar horario
+              </button>
+            </div>
+            {errors.horarios && <p className="mt-1 text-sm text-red-500">{errors.horarios}</p>}
           </div>
 
           {/* Botones */}
@@ -384,6 +460,14 @@ export default function AltaCanchaPage() {
           </div>
         </form>
       </div>
+
+      {/* Toast de notificaciones */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={closeToast}
+      />
     </div>
   )
 }

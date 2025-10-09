@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-// Enum para tipos de cancha
-const TipoCancha = {
-  FUTBOL_5: 'FUTBOL_5',
-  FUTBOL: 'FUTBOL',
-  BASQUET: 'BASQUET'
-} as const
-
-type TipoCanchaType = typeof TipoCancha[keyof typeof TipoCancha]
+import { TipoCancha } from '@prisma/client'
 
 interface CanchaData {
-  numero: number
-  tipo: TipoCanchaType
+  nombre: string
+  tipo: TipoCancha
   ubicacion: string
-  horariosInicio: string
-  horariosFin: string
+  horarios: { inicio: string; fin: string }[]  // Array de rangos horarios
   precio: number
   practicaDeportivaId?: number
 }
@@ -25,22 +16,22 @@ export async function POST(request: NextRequest) {
     const body: CanchaData = await request.json()
 
     // Validar datos requeridos
-    if (!body.numero || !body.tipo || !body.ubicacion || 
-        !body.horariosInicio || !body.horariosFin || !body.precio) {
+    if (!body.nombre || !body.tipo || !body.ubicacion || 
+        !body.horarios || body.horarios.length === 0 || !body.precio) {
       return NextResponse.json(
         { message: 'Todos los campos son requeridos' },
         { status: 400 }
       )
     }
 
-    // Validar que el número no sea duplicado
+    // Validar que el nombre no sea duplicado
     const existingCancha = await prisma.cancha.findUnique({
-      where: { numero: body.numero }
+      where: { nombre: body.nombre }
     })
 
     if (existingCancha) {
       return NextResponse.json(
-        { message: `Ya existe una cancha con el número ${body.numero}` },
+        { message: `Ya existe una cancha con el nombre ${body.nombre}` },
         { status: 400 }
       )
     }
@@ -49,14 +40,6 @@ export async function POST(request: NextRequest) {
     if (!Object.values(TipoCancha).includes(body.tipo)) {
       return NextResponse.json(
         { message: 'Tipo de cancha inválido' },
-        { status: 400 }
-      )
-    }
-
-    // Validar rangos
-    if (body.numero <= 0) {
-      return NextResponse.json(
-        { message: 'El número de cancha debe ser mayor a 0' },
         { status: 400 }
       )
     }
@@ -77,23 +60,42 @@ export async function POST(request: NextRequest) {
 
     // Validar formato de horarios (HH:MM)
     const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
-    if (!timeRegex.test(body.horariosInicio) || !timeRegex.test(body.horariosFin)) {
-      return NextResponse.json(
-        { message: 'Formato de horario inválido (debe ser HH:MM)' },
-        { status: 400 }
-      )
+    for (const horario of body.horarios) {
+      if (!timeRegex.test(horario.inicio) || !timeRegex.test(horario.fin)) {
+        return NextResponse.json(
+          { message: 'Formato de horario inválido (debe ser HH:MM)' },
+          { status: 400 }
+        )
+      }
+      
+      // Validar que inicio sea antes que fin
+      const [horaInicio, minInicio] = horario.inicio.split(':').map(Number)
+      const [horaFin, minFin] = horario.fin.split(':').map(Number)
+      if (horaInicio * 60 + minInicio >= horaFin * 60 + minFin) {
+        return NextResponse.json(
+          { message: 'La hora de inicio debe ser anterior a la hora de fin' },
+          { status: 400 }
+        )
+      }
     }
 
-    // Crear la cancha
+    // Crear la cancha con sus horarios
     const nuevaCancha = await prisma.cancha.create({
       data: {
-        numero: body.numero,
+        nombre: body.nombre,
         tipo: body.tipo,
         ubicacion: body.ubicacion,
-        horariosInicio: body.horariosInicio,
-        horariosFin: body.horariosFin,
         precio: body.precio,
-        practicaDeportivaId: body.practicaDeportivaId || null
+        practicaDeportivaId: body.practicaDeportivaId || null,
+        horarios: {
+          create: body.horarios.map(h => ({
+            horaInicio: h.inicio,
+            horaFin: h.fin
+          }))
+        }
+      },
+      include: {
+        horarios: true
       }
     })
 
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       if (error.message.includes('Unique constraint')) {
         return NextResponse.json(
-          { message: 'Ya existe una cancha con ese número' },
+          { message: 'Ya existe una cancha con ese nombre' },
           { status: 400 }
         )
       }
@@ -130,6 +132,7 @@ export async function GET() {
     const canchas = await prisma.cancha.findMany({
       include: {
         practicaDeportiva: true,
+        horarios: true,  // Incluir los horarios
         turnos: {
           where: {
             fecha: {
@@ -142,7 +145,7 @@ export async function GET() {
         }
       },
       orderBy: {
-        numero: 'asc'
+        nombre: 'asc'
       }
     })
 
