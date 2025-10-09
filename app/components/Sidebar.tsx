@@ -77,7 +77,7 @@ export default function Sidebar() {
       icon: <Dumbbell size={20} />,
       label: 'Prácticas Deportivas',
       subItems: [
-        { label: 'Registrar Práctica', href: '/admin/practicas/registrar' },
+        { label: 'Registrar Práctica', href: '/admin/altaPractica' },
         { label: 'Modificar Práctica', href: '/admin/practicas/modificar' },
         { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' }
       ]
