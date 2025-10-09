@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
+
+import Toast, { ToastType } from '@/app/components/Toast'
+
 import { Plus, User } from 'lucide-react'
 
 type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO'
@@ -27,7 +30,6 @@ interface FormErrors {
   cupo?: string
   precio?: string
   horarios?: string
-  general?: string
 }
 
 const diasSemana: { value: DiaSemana; label: string }[] = [
@@ -63,7 +65,25 @@ export default function AltaPracticaPage() {
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [success, setSuccess] = useState(false)
+  
+  // Toast state
+  const [toast, setToast] = useState<{
+    isOpen: boolean
+    message: string
+    type: ToastType
+  }>({
+    isOpen: false,
+    message: '',
+    type: 'success'
+  })
+
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ isOpen: true, message, type })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, isOpen: false }))
+  }
 
   // Validaciones en tiempo real
   const validateField = (name: string, value: string): string => {
@@ -215,7 +235,7 @@ export default function AltaPracticaPage() {
         throw new Error(data.error || 'Error al registrar la práctica')
       }
 
-      setSuccess(true)
+      showToast('¡La práctica se registró correctamente!', 'success')
       // Limpiar formulario
       setFormData({
         nombre: '',
@@ -230,13 +250,11 @@ export default function AltaPracticaPage() {
         }]
       })
 
-      // Ocultar mensaje de éxito después de 5 segundos
-      setTimeout(() => setSuccess(false), 5000)
-
     } catch (error) {
-      setErrors({
-        general: error instanceof Error ? error.message : 'Error al registrar la práctica'
-      })
+      showToast(
+        error instanceof Error ? error.message : 'Error al registrar la práctica',
+        'error'
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -256,7 +274,7 @@ export default function AltaPracticaPage() {
       }]
     })
     setErrors({})
-    setSuccess(false)
+    closeToast()
   }
 
   return (
@@ -281,19 +299,6 @@ export default function AltaPracticaPage() {
           
           <h2 className="text-2xl font-semibold text-gray-800">Registrar Práctica</h2>
         </div>
-
-        {/* Mensajes de éxito y error */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-            ¡La práctica se registró correctamente!
-          </div>
-        )}
-
-        {errors.general && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            {errors.general}
-          </div>
-        )}
 
         {/* Formulario */}
         <div className="bg-white rounded-lg shadow-md p-8 max-w-4xl">
@@ -479,6 +484,15 @@ export default function AltaPracticaPage() {
           </form>
         </div>
       </main>
+
+      {/* Toast notifications */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={closeToast}
+        duration={5000}
+      />
     </div>
   )
 }
