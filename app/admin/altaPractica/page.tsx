@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
+
 import Toast, { ToastType } from '@/app/components/Toast'
+
 import { Plus, User } from 'lucide-react'
 
 type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO'
