@@ -43,8 +43,8 @@ export default function Sidebar() {
       label: 'Administrador',
       subItems: [
         { label: 'Registrar Administrador', href: '/admin/altaAdmin' },
-        { label: 'Modificar Administrador', href: '/admin/modifAdmin' },
-        { label: 'Eliminar Administrador', href: '/admin/bajaAdmin' }
+        { label: 'Modificar Administrador', href: '/admin/modificarAdmin' },
+        { label: 'Eliminar Administrador', href: '/admin/configuracion' }
       ]
     },
     {
