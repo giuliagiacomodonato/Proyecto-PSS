@@ -69,6 +69,7 @@ model Usuario {
   
   // Relaciones
   turnos           Turno[]     // Turnos reservados (solo socios)
+  bajasRealizadas  UsuarioBaja[] // Bajas que realizó este usuario
   
   @@map("usuarios")
 }
@@ -140,4 +141,29 @@ model Turno {
   usuarioSocio  Usuario? @relation(fields: [usuarioSocioId], references: [id])
   
   @@map("turnos")
+}
+
+// Tabla única de bajas de usuarios (auditoría de bajas)
+// Almacena un snapshot completo de los datos del usuario eliminado y del que realizó la baja
+model UsuarioBaja {
+  id                Int         @id @default(autoincrement())
+  
+  // Snapshot del usuario eliminado (datos históricos inmutables)
+  usuarioEliminadoId      Int         // ID del usuario eliminado (solo referencia histórica)
+  usuarioEliminadoNombre  String      // Nombre del usuario eliminado
+  usuarioEliminadoDni     String      // DNI del usuario eliminado
+  usuarioEliminadoEmail   String      // Email del usuario eliminado
+  rolUsuarioEliminado     RolUsuario  // Rol del usuario eliminado
+  
+  // Snapshot del usuario que realizó la baja (para auditoría completa)
+  realizadoPorId          Int?        // ID del administrador que realiza la baja (puede ser NULL si fue eliminado)
+  realizadoPorNombre      String      // Nombre del administrador que realizó la baja
+  realizadoPorDni         String      // DNI del administrador que realizó la baja
+  realizadoPor            Usuario?    @relation(fields: [realizadoPorId], references: [id], onDelete: SetNull)
+  
+  // Datos de la baja
+  fechaBaja               DateTime    @default(now())
+  motivo                  String?     // Motivo de la baja (opcional)
+  
+  @@map("usuarios_bajas")
 }
