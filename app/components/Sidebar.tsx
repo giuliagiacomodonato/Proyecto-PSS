@@ -42,8 +42,9 @@ export default function Sidebar() {
       icon: <UserCircle size={20} />,
       label: 'Administrador',
       subItems: [
-        { label: 'Perfil', href: '/admin/perfil' },
-        { label: 'Configuración', href: '/admin/configuracion' }
+        { label: 'Registrar Administrador', href: '/admin/altaAdmin' },
+        { label: 'Modificar Administrador', href: '/admin/modificarAdmin' },
+        { label: 'Eliminar Administrador', href: '/admin/configuracion' }
       ]
     },
     {
