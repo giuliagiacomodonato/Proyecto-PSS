@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { TipoCancha } from '@prisma/client'
 
 interface CanchaData {
   nombre: string
