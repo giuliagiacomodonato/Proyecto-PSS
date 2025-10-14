@@ -4,7 +4,7 @@ import { TipoCancha } from '@prisma/client'
 
 interface CanchaData {
   nombre: string
-  tipo: TipoCancha
+  tipo: string
   ubicacion: string
   horarios: { inicio: string; fin: string }[]  // Array de rangos horarios
   precio: number
@@ -36,14 +36,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar tipo de cancha
-    if (!Object.values(TipoCancha).includes(body.tipo)) {
-      return NextResponse.json(
-        { message: 'Tipo de cancha inválido' },
-        { status: 400 }
-      )
-    }
-
+  
     if (body.precio <= 0) {
       return NextResponse.json(
         { message: 'El precio debe ser mayor a 0' },
@@ -83,7 +76,7 @@ export async function POST(request: NextRequest) {
     const nuevaCancha = await prisma.cancha.create({
       data: {
         nombre: body.nombre,
-        tipo: body.tipo,
+        tipo: body.tipo as any,
         ubicacion: body.ubicacion,
         precio: body.precio,
         practicaDeportivaId: body.practicaDeportivaId || null,
