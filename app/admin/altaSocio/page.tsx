@@ -49,14 +49,14 @@ export default function AltaSocioPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{
-    message: string;
-    type: 'success' | 'error' | 'info';
-    isVisible: boolean;
-  }>({
-    message: '',
-    type: 'info',
-    isVisible: false
-  });
+      message: string;
+      type: 'success' | 'error' | 'info';
+      isOpen: boolean;
+    }>({
+      message: '',
+      type: 'info',
+      isOpen: false
+    });
 
   // Validaciones
   const validateField = (name: string, value: string): string => {
@@ -142,7 +142,7 @@ export default function AltaSocioPage() {
       setToast({
         message: 'Por favor, complete todos los campos correctamente',
         type: 'error',
-        isVisible: true
+        isOpen: true
       });
       return; // No guardar si hay errores
     }
@@ -155,7 +155,7 @@ export default function AltaSocioPage() {
       setToast({
         message: 'El DNI ya fue agregado a otro familiar',
         type: 'error',
-        isVisible: true
+        isOpen: true
       });
       return;
     }
@@ -164,7 +164,7 @@ export default function AltaSocioPage() {
       setToast({
         message: 'El email ya fue agregado a otro familiar',
         type: 'error',
-        isVisible: true
+        isOpen: true
       });
       return;
     }
@@ -174,7 +174,7 @@ export default function AltaSocioPage() {
     setToast({
       message: 'Familiar agregado exitosamente',
       type: 'success',
-      isVisible: true
+      isOpen: true
     });
   };
 
@@ -212,7 +212,7 @@ export default function AltaSocioPage() {
         setToast({
           message: `¡Registro exitoso! ${result.socio.tipoSocio === 'FAMILIAR' ? `Se registraron ${result.socio.familiares + 1} socios` : 'Socio registrado correctamente'}`,
           type: 'success',
-          isVisible: true
+          isOpen: true
         });
         
         // Limpiar formulario
@@ -233,14 +233,14 @@ export default function AltaSocioPage() {
         setToast({
           message: `Error: ${error.message}`,
           type: 'error',
-          isVisible: true
+          isOpen: true
         });
       }
     } catch (error) {
       setToast({
         message: 'Error al registrar el socio. Intente nuevamente.',
         type: 'error',
-        isVisible: true
+        isOpen: true
       });
     } finally {
       setIsLoading(false);
@@ -601,9 +601,9 @@ export default function AltaSocioPage() {
       <Toast
         message={toast.message}
         type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
-      />
+        isOpen={toast.isOpen}
+        onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
+        />
     </AdminLayout>
   );
 }
