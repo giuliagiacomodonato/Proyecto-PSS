@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma'
 
-declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined
-}
-
-const prisma = global.prisma ?? new PrismaClient()
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma
 
 function yearRangeErrorFor(dateStr: any, fieldName: string) {
   if (!dateStr) return `${fieldName} inválida`
