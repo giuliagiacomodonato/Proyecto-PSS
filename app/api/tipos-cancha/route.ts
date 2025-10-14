@@ -12,7 +12,7 @@ export async function GET() {
     })
 
     // Extraer solo los valores del tipo
-    const tipos = canchas.map(c => c.tipo)
+    const tipos = canchas.map((c:any) => c.tipo)
 
     return NextResponse.json({ tipos })
   } catch (error) {
