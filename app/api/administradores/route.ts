@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { enviarCorreoBajaUsuario } from '@/lib/email'
+import { Prisma } from '@prisma/client'
 
 
 // GET - Obtener administrador por DNI
@@ -115,7 +116,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Usar transacción para garantizar atomicidad
-    const resultado = await prisma.$transaction(async (tx) => {
+    const resultado = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Registrar la baja en la tabla de auditoría (SNAPSHOT completo de ambos usuarios)
       const registroBaja = await tx.usuarioBaja.create({
         data: {
