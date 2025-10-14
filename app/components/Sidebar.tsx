@@ -47,14 +47,14 @@ export default function Sidebar() {
       subItems: [
         { label: 'Registrar Administrador', href: '/admin/altaAdmin' },
         { label: 'Modificar Administrador', href: '/admin/modificarAdmin' },
-        { label: 'Eliminar Administrador', href: '/admin/configuracion' }
+        { label: 'Eliminar Administrador', href: '/admin/bajaAdmin' }
       ]
     },
     {
       icon: <Users size={20} />,
       label: 'Entrenadores',
       subItems: [
-        { label: 'Registrar Entrenador', href: '/admin/entrenadores/registrar' },
+        { label: 'Registrar Entrenador', href: '/admin/altaEntrenador' },
         { label: 'Modificar Entrenador', href: '/admin/entrenadores/modificar' },
         { label: 'Eliminar Entrenador', href: '/admin/entrenadores/eliminar' }
       ]
@@ -105,7 +105,7 @@ export default function Sidebar() {
   ]
 
   return (
-    <aside className="w-80 bg-gray-800 min-h-screen p-4">
+    <aside className="w-80 bg-white min-h-screen p-4 border-r border-gray-200">
       {/* Menu Items */}
       <nav className="space-y-2">
         {menuItems.map((item) => (
@@ -114,8 +114,10 @@ export default function Sidebar() {
               // Link directo sin submenú
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-colors text-white ${
-                  pathname === item.href ? 'bg-gray-700' : 'hover:bg-gray-700'
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  pathname === item.href 
+                    ? 'bg-gray-100 text-gray-900' 
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {item.icon}
@@ -126,7 +128,7 @@ export default function Sidebar() {
               <>
                 <button
                   onClick={() => toggleMenu(item.label)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 transition-colors text-white"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
                 >
                   {item.icon}
                   <span className="flex-1 text-left">{item.label}</span>
@@ -146,8 +148,8 @@ export default function Sidebar() {
                         href={subItem.href}
                         className={`flex items-center gap-2 p-2 pl-4 rounded-lg transition-colors text-sm ${
                           pathname === subItem.href 
-                            ? 'bg-gray-700 text-white' 
-                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            ? 'bg-gray-100 text-gray-900 font-medium' 
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
                         {pathname === subItem.href && <Check size={16} />}
