@@ -45,10 +45,10 @@ importers:
         specifier: ^6.17.0
         version: 6.17.0(typescript@5.9.3)
       react:
-        specifier: 19.1.0
+        specifier: ^19.1.0
         version: 19.1.0
       react-dom:
-        specifier: 19.1.0
+        specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
       tailwind-merge:
         specifier: ^3.3.1
