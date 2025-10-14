@@ -333,10 +333,6 @@ export default function Home() {
               </>
             )}
           </Button>
-          <div className="text-center text-sm text-gray-500 mt-4">
-              Usá cuentas demo (solo con mocks): <br/> 
-              <span className="font-mono bg-gray-200 px-1 rounded">admin@club.test / Pass1234!, socio@club.test / Pass1234! y entrenador@club.test / Pass1234! </span>
-          </div>
         </form>
       </div>
       <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={closeToast} />
