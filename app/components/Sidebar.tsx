@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { 
   Home, 
   Users, 
@@ -11,7 +12,8 @@ import {
   CreditCard,
   DollarSign,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Check
 } from 'lucide-react'
 
 interface MenuItem {
@@ -22,7 +24,8 @@ interface MenuItem {
 }
 
 export default function Sidebar() {
-  const [openMenus, setOpenMenus] = useState<string[]>(['Canchas'])
+  const pathname = usePathname()
+  const [openMenus, setOpenMenus] = useState<string[]>(['Socios'])
 
   const toggleMenu = (label: string) => {
     setOpenMenus(prev => 
@@ -60,9 +63,9 @@ export default function Sidebar() {
       icon: <UsersRound size={20} />,
       label: 'Socios',
       subItems: [
-        { label: 'Registrar Socio', href: '/admin/socios/registrar' },
-        { label: 'Modificar Socio', href: '/admin/socios/modificar' },
-        { label: 'Eliminar Socio', href: '/admin/socios/eliminar' }
+        { label: 'Registrar Socio', href: '/admin/altaSocio' },
+        { label: 'Modificar Socio', href: '/admin/modifSocio' },
+        { label: 'Eliminar Socio', href: '/admin/bajaSocio' }
       ]
     },
     {
@@ -102,16 +105,7 @@ export default function Sidebar() {
   ]
 
   return (
-    <aside className="w-80 bg-gray-100 min-h-screen p-4 border-r border-gray-300">
-      {/* Logo/Home */}
-      <Link 
-        href="/admin" 
-        className="flex items-center gap-3 mb-8 p-3 rounded-lg hover:bg-gray-200 transition-colors"
-      >
-        <Home size={24} />
-        <span className="text-xl font-semibold">Panel Principal</span>
-      </Link>
-
+    <aside className="w-80 bg-gray-800 min-h-screen p-4">
       {/* Menu Items */}
       <nav className="space-y-2">
         {menuItems.map((item) => (
@@ -120,7 +114,9 @@ export default function Sidebar() {
               // Link directo sin submenú
               <Link
                 href={item.href}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-200 transition-colors text-gray-700"
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors text-white ${
+                  pathname === item.href ? 'bg-gray-700' : 'hover:bg-gray-700'
+                }`}
               >
                 {item.icon}
                 <span className="flex-1">{item.label}</span>
@@ -130,7 +126,7 @@ export default function Sidebar() {
               <>
                 <button
                   onClick={() => toggleMenu(item.label)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-200 transition-colors text-gray-700"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 transition-colors text-white"
                 >
                   {item.icon}
                   <span className="flex-1 text-left">{item.label}</span>
@@ -148,9 +144,13 @@ export default function Sidebar() {
                       <Link
                         key={subItem.label}
                         href={subItem.href}
-                        className="flex items-center gap-2 p-2 pl-4 rounded-lg hover:bg-gray-200 transition-colors text-gray-600 text-sm"
+                        className={`flex items-center gap-2 p-2 pl-4 rounded-lg transition-colors text-sm ${
+                          pathname === subItem.href 
+                            ? 'bg-gray-700 text-white' 
+                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}
                       >
-                        <Dumbbell size={16} />
+                        {pathname === subItem.href && <Check size={16} />}
                         {subItem.label}
                       </Link>
                     ))}

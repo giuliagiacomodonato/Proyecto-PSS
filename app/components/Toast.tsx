@@ -1,74 +1,81 @@
-'use client'
+'use client';
 
-import { useEffect } from 'react'
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
-
-export type ToastType = 'success' | 'error' | 'info' | 'warning'
+import { useEffect, useState } from 'react';
 
 interface ToastProps {
-  message: string
-  type?: ToastType
-  isOpen: boolean
-  onClose: () => void
-  duration?: number
+  message: string;
+  type: 'success' | 'error' | 'info';
+  isVisible: boolean;
+  onClose: () => void;
+  duration?: number;
 }
 
-export default function Toast({ 
-  message, 
-  type = 'success', 
-  isOpen, 
-  onClose,
-  duration = 3000 
-}: ToastProps) {
-  useEffect(() => {
-    if (isOpen && duration > 0) {
-      const timer = setTimeout(() => {
-        onClose()
-      }, duration)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen, duration, onClose])
+export default function Toast({ message, type, isVisible, onClose, duration = 5000 }: ToastProps) {
+  const [show, setShow] = useState(isVisible);
 
-  if (!isOpen) return null
+  useEffect(() => {
+    setShow(isVisible);
+    
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        setShow(false);
+        setTimeout(onClose, 300); // Esperar a que termine la animación
+      }, duration);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, duration, onClose]);
+
+  if (!show) return null;
+
+  const getTypeStyles = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500 text-white';
+      case 'error':
+        return 'bg-red-500 text-white';
+      case 'info':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
+    }
+  };
 
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="w-6 h-6 text-green-600" />
+        return '✓';
       case 'error':
-        return <AlertCircle className="w-6 h-6 text-red-600" />
-      case 'warning':
-        return <AlertTriangle className="w-6 h-6 text-yellow-600" />
+        return '✗';
       case 'info':
-        return <Info className="w-6 h-6 text-blue-600" />
+        return 'ℹ';
+      default:
+        return '•';
     }
-  }
-
-  const getStyles = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-white border-l-4 border-green-600 shadow-lg'
-      case 'error':
-        return 'bg-white border-l-4 border-red-600 shadow-lg'
-      case 'warning':
-        return 'bg-white border-l-4 border-yellow-600 shadow-lg'
-      case 'info':
-        return 'bg-white border-l-4 border-blue-600 shadow-lg'
-    }
-  }
+  };
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 duration-300">
-      <div className={`${getStyles()} rounded-lg p-4 min-w-[320px] max-w-md flex items-center gap-3`}>
-        {getIcon()}
-        <p className="flex-1 text-gray-800 font-medium">{message}</p>
+    <div className={`fixed top-4 right-4 z-50 max-w-sm w-full ${show ? 'animate-slide-in' : 'animate-slide-out'}`}>
+      <div className={`${getTypeStyles()} rounded-lg shadow-lg p-4 flex items-center space-x-3`}>
+        <div className="flex-shrink-0">
+          <span className="text-lg font-bold">{getIcon()}</span>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium">{message}</p>
+        </div>
         <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          onClick={() => {
+            setShow(false);
+            setTimeout(onClose, 300);
+          }}
+          className="flex-shrink-0 text-white hover:text-gray-200 focus:outline-none"
         >
-          <X size={20} />
+          <span className="sr-only">Cerrar</span>
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
         </button>
       </div>
     </div>
-  )
+  );
 }
