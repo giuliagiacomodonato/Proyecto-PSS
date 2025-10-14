@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Toast from '../../components/Toast';
+import AdminLayout from '../../components/AdminLayout';
 
 interface SocioFormData {
   nombre: string;
@@ -247,7 +248,7 @@ export default function AltaSocioPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <AdminLayout>
       <div className="max-w-4xl mx-auto">
         <div className={`bg-white rounded-lg shadow-md p-6 transition-all duration-300 ${showModalFamiliar ? 'opacity-50 blur-sm' : 'opacity-100'}`}>
           <h1 className="text-2xl font-bold text-gray-800 mb-6">
@@ -603,6 +604,6 @@ export default function AltaSocioPage() {
         isVisible={toast.isVisible}
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
       />
-    </div>
+    </AdminLayout>
   );
 }
