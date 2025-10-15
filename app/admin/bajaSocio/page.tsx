@@ -13,18 +13,26 @@ interface ToastState {
 }
 
 export default function BajaSocioPage() {
+  // Hook para navegación entre páginas
   const router = useRouter()
+  // Estado para el DNI ingresado
   const [dni, setDni] = useState('')
+  // Estado para mostrar la fecha de baja (formateada)
   const [fechaBaja, setFechaBaja] = useState('')
+  // Estado para mostrar spinner de carga
   const [loading, setLoading] = useState(false)
+  // Estado para mostrar el modal de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  // Estado para errores de validación
   const [errors, setErrors] = useState<{ dni?: string }>({})
+  // Estado para mostrar mensajes tipo toast (éxito/error)
   const [toast, setToast] = useState<ToastState>({
     isOpen: false,
     message: '',
     type: 'success'
   })
 
+  // Al montar el componente, establecer la fecha actual formateada
   useEffect(() => {
     const hoy = new Date()
     const fechaFormateada = hoy.toLocaleDateString('es-AR', {
@@ -35,14 +43,17 @@ export default function BajaSocioPage() {
     setFechaBaja(fechaFormateada)
   }, [])
 
+  // Función para mostrar un toast (mensaje flotante)
   const showToast = (message: string, type: ToastType = 'success') => {
     setToast({ isOpen: true, message, type })
   }
 
+  // Función para cerrar el toast
   const closeToast = () => {
     setToast(prev => ({ ...prev, isOpen: false }))
   }
 
+  // Maneja el cambio de valor del campo DNI y valida formato
   const handleDniChange = (value: string) => {
     setDni(value)
     if (value && /^\d{7,8}$/.test(value)) {
@@ -50,6 +61,8 @@ export default function BajaSocioPage() {
     }
   }
 
+  // Función que valida el DNI y busca el socio en la base de datos
+  // Si existe, muestra el modal de confirmación
   const handleConfirmarBaja = async () => {
     if (!dni.trim()) {
       setErrors({ dni: 'El DNI es requerido' })
@@ -80,10 +93,13 @@ export default function BajaSocioPage() {
     }
   }
 
+  // Cierra el modal de confirmación
   const handleCancelarModal = () => {
     setShowConfirmModal(false)
   }
 
+  // Llama al endpoint DELETE para eliminar el socio
+  // Muestra toast de éxito o error y redirige al panel principal
   const eliminarSocio = async () => {
     setLoading(true)
     try {
@@ -117,15 +133,19 @@ export default function BajaSocioPage() {
     }
   }
 
+  // Limpia el campo DNI y errores
   const handleCancel = () => {
     setDni('')
     setErrors({})
   }
 
+  // Renderiza la interfaz de baja de socio
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Barra lateral de navegación */}
       <Sidebar />
       <main className="flex-1 p-8">
+        {/* Header y breadcrumb */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
@@ -139,6 +159,7 @@ export default function BajaSocioPage() {
           </div>
           <h2 className="text-2xl font-semibold text-gray-800">Eliminar Socio</h2>
         </div>
+        {/* Formulario para ingresar DNI y confirmar baja */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-2xl">
           <div className="mb-6">
             <label htmlFor="dni" className="block text-sm font-medium text-gray-700 mb-2">
@@ -196,6 +217,7 @@ export default function BajaSocioPage() {
           </div>
         </div>
       </main>
+      {/* Modal de confirmación para eliminar socio */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full transform transition-all">
@@ -246,6 +268,7 @@ export default function BajaSocioPage() {
           </div>
         </div>
       )}
+      {/* Toast para mostrar mensajes de éxito o error */}
       <Toast
         message={toast.message}
         type={toast.type}
