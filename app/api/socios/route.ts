@@ -197,3 +197,81 @@ export async function GET(request: NextRequest) {
     await prisma.$disconnect();
   }
 }
+
+// Endpoint para eliminar un socio
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const dni = searchParams.get('dni');
+
+    if (!dni) {
+      return NextResponse.json(
+        { message: 'Se requiere DNI para eliminar socio' },
+        { status: 400 }
+      );
+    }
+
+    // Buscar el socio antes de eliminarlo
+    const socio = await prisma.usuario.findFirst({
+      where: { dni: dni, rol: 'SOCIO' }
+    });
+
+    if (!socio) {
+      return NextResponse.json(
+        { message: 'No se encontró ningún socio con ese DNI' },
+        { status: 404 }
+      );
+    }
+
+    // Registrar la baja en UsuarioBaja solo con los campos obligatorios del usuario eliminado
+    const registroBaja = await prisma.usuarioBaja.create({
+      data: {
+        usuarioEliminadoId: socio.id,
+        usuarioEliminadoNombre: socio.nombre,
+        usuarioEliminadoDni: socio.dni,
+        usuarioEliminadoEmail: socio.email,
+        rolUsuarioEliminado: socio.rol,
+        // El resto de los campos quedan nulos o vacíos
+        realizadoPorId: null,
+        realizadoPorNombre: '',
+        realizadoPorDni: '',
+        motivo: ''
+      }
+    });
+
+    // Eliminar el socio
+    await prisma.usuario.delete({
+      where: { id: socio.id }
+    });
+
+    // Enviar correo de notificación al socio dado de baja
+    try {
+      // Importar la función de email dinámicamente para evitar problemas de dependencias
+      const { enviarCorreoBajaUsuario } = await import('@/lib/email');
+      await enviarCorreoBajaUsuario({
+        email: socio.email,
+        nombre: socio.nombre,
+        dni: socio.dni,
+        rol: socio.rol,
+        fechaBaja: registroBaja.fechaBaja
+      });
+      console.log(`Correo de notificación enviado a ${socio.email}`);
+    } catch (emailError) {
+      console.error('Error al enviar correo de notificación:', emailError);
+      // La baja ya se realizó, solo falló el correo
+    }
+
+    return NextResponse.json(
+      { message: 'Socio eliminado exitosamente' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error al eliminar socio:', error);
+    return NextResponse.json(
+      { message: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
