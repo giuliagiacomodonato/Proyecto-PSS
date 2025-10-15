@@ -115,14 +115,83 @@ export default function AltaCanchaPage() {
     const nuevosHorarios = [...horarios]
     nuevosHorarios[index][campo] = valor
     setHorarios(nuevosHorarios)
-    // Limpiar error si existe
-    if (errors.horarios) {
-      setErrors(prev => ({ ...prev, horarios: undefined }))
+    
+    // Validar en tiempo real
+    validarHorariosEnTiempoReal(nuevosHorarios)
+  }
+
+  // Validar horarios en tiempo real
+  const validarHorariosEnTiempoReal = (horariosActuales: Horario[]) => {
+    // Verificar que todos los horarios tengan inicio y fin
+    const todosCompletos = horariosActuales.every(h => h.inicio && h.fin)
+    
+    if (!todosCompletos) {
+      // Limpiar error si no están todos completos aún
+      if (errors.horarios) {
+        setErrors(prev => ({ ...prev, horarios: undefined }))
+      }
+      return
     }
+
+    // Validar que inicio < fin para cada horario
+    for (let i = 0; i < horariosActuales.length; i++) {
+      const horario = horariosActuales[i]
+      if (horario.inicio === horario.fin) {
+        setErrors(prev => ({ ...prev, horarios: 'El horario de inicio no puede ser igual al de fin' }))
+        return
+      }
+      const horaInicio = parseInt(horario.inicio.split(':')[0])
+      const horaFin = parseInt(horario.fin.split(':')[0])
+      if (horaInicio >= horaFin) {
+        setErrors(prev => ({ ...prev, horarios: 'El horario de inicio debe ser anterior al de fin' }))
+        return
+      }
+    }
+
+    // Validar superposiciones si hay más de un horario
+    if (horariosActuales.length > 1) {
+      for (let i = 0; i < horariosActuales.length; i++) {
+        for (let j = i + 1; j < horariosActuales.length; j++) {
+          const horario1 = horariosActuales[i]
+          const horario2 = horariosActuales[j]
+          
+          // Solo validar si ambos horarios están completos
+          if (!horario1.inicio || !horario1.fin || !horario2.inicio || !horario2.fin) {
+            continue
+          }
+          
+          const inicio1 = parseInt(horario1.inicio.split(':')[0])
+          const fin1 = parseInt(horario1.fin.split(':')[0])
+          const inicio2 = parseInt(horario2.inicio.split(':')[0])
+          const fin2 = parseInt(horario2.fin.split(':')[0])
+          
+          // Verificar superposición
+          if (inicio1 < fin2 && inicio2 < fin1) {
+            setErrors(prev => ({ 
+              ...prev, 
+              horarios: `Los horarios no pueden superponerse. Conflicto entre ${horario1.inicio}-${horario1.fin} y ${horario2.inicio}-${horario2.fin}` 
+            }))
+            return
+          }
+        }
+      }
+    }
+
+    // Si todo está bien, limpiar errores
+    setErrors(prev => ({ ...prev, horarios: undefined }))
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    
+    // Validar precio en tiempo real - solo permitir dígitos
+    if (name === 'precio') {
+      // Solo permitir números
+      if (value !== '' && !/^\d+$/.test(value)) {
+        return // No actualizar si contiene caracteres no numéricos
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -153,6 +222,15 @@ export default function AltaCanchaPage() {
       newErrors.ubicacion = 'La ubicación no puede exceder 100 caracteres'
     }
 
+    // Validar precio - solo dígitos
+    if (!formData.precio.trim()) {
+      newErrors.precio = 'El precio es requerido'
+    } else if (!/^\d+$/.test(formData.precio)) {
+      newErrors.precio = 'El precio debe contener solo dígitos'
+    } else if (parseInt(formData.precio) <= 0) {
+      newErrors.precio = 'El precio debe ser mayor a 0'
+    }
+
     // Validar horarios
     let horariosValidos = true
     for (let i = 0; i < horarios.length; i++) {
@@ -176,12 +254,29 @@ export default function AltaCanchaPage() {
       }
     }
 
-    if (!formData.precio.trim()) {
-      newErrors.precio = 'El precio es requerido'
-    } else if (!/^\d+$/.test(formData.precio)) {
-      newErrors.precio = 'El precio debe contener solo números'
-    } else if (parseInt(formData.precio) <= 0) {
-      newErrors.precio = 'El precio debe ser mayor a 0'
+    // Validar que los horarios no se superpongan
+    if (horariosValidos && horarios.length > 1) {
+      for (let i = 0; i < horarios.length; i++) {
+        for (let j = i + 1; j < horarios.length; j++) {
+          const horario1 = horarios[i]
+          const horario2 = horarios[j]
+          
+          const inicio1 = parseInt(horario1.inicio.split(':')[0])
+          const fin1 = parseInt(horario1.fin.split(':')[0])
+          const inicio2 = parseInt(horario2.inicio.split(':')[0])
+          const fin2 = parseInt(horario2.fin.split(':')[0])
+          
+          // Verificar superposición
+          // Horario 1: [inicio1, fin1), Horario 2: [inicio2, fin2)
+          // Se superponen si: inicio1 < fin2 && inicio2 < fin1
+          if (inicio1 < fin2 && inicio2 < fin1) {
+            newErrors.horarios = `Los horarios no pueden superponerse. Conflicto entre ${horario1.inicio}-${horario1.fin} y ${horario2.inicio}-${horario2.fin}`
+            horariosValidos = false
+            break
+          }
+        }
+        if (!horariosValidos) break
+      }
     }
 
     setErrors(newErrors)
@@ -338,7 +433,7 @@ export default function AltaCanchaPage() {
           <div className="grid grid-cols-1 gap-6">
             <div>
               <label htmlFor="precio" className="block text-sm font-medium text-gray-600 mb-2">
-                Precio <span className="text-red-500">*</span>
+                Precio (solo dígitos) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -346,12 +441,13 @@ export default function AltaCanchaPage() {
                 name="precio"
                 value={formData.precio}
                 onChange={handleInputChange}
-                placeholder="Ingrese el precio"
+                placeholder="Ingrese el precio (solo números)"
                 className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.precio ? 'border-red-500' : ''
                 }`}
               />
               {errors.precio && <p className="mt-1 text-sm text-red-500">{errors.precio}</p>}
+              <p className="mt-1 text-xs text-gray-500">Solo se permiten números enteros positivos</p>
             </div>
           </div>
 

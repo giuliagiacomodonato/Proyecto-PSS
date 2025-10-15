@@ -125,12 +125,43 @@ export default function AltaPracticaPage() {
   }
 
   const handleHorarioChange = (id: string, field: keyof Horario, value: string) => {
+    const nuevosHorarios = formData.horarios.map(horario =>
+      horario.id === id ? { ...horario, [field]: value } : horario
+    )
+    
     setFormData(prev => ({
       ...prev,
-      horarios: prev.horarios.map(horario =>
-        horario.id === id ? { ...horario, [field]: value } : horario
-      )
+      horarios: nuevosHorarios
     }))
+    
+    // Validar horarios en tiempo real
+    validarHorariosEnTiempoReal(nuevosHorarios)
+  }
+
+  const validarHorariosEnTiempoReal = (horarios: Horario[]) => {
+    // Verificar que al menos un horario esté completo
+    const horariosCompletos = horarios.filter(h => h.dia && h.horaInicio && h.horaFin)
+    
+    if (horariosCompletos.length === 0) {
+      // Limpiar error si no hay horarios completos aún
+      setErrors(prev => ({ ...prev, horarios: undefined }))
+      return
+    }
+
+    // Validar que horaInicio < horaFin para cada horario completo
+    for (const horario of horariosCompletos) {
+      const [horaInicioH, horaInicioM] = horario.horaInicio.split(':').map(Number)
+      const [horaFinH, horaFinM] = horario.horaFin.split(':').map(Number)
+      const inicioMinutos = horaInicioH * 60 + horaInicioM
+      const finMinutos = horaFinH * 60 + horaFinM
+
+      if (inicioMinutos >= finMinutos) {
+        setErrors(prev => ({ ...prev, horarios: `La hora de inicio (${horario.horaInicio}) debe ser menor que la hora de fin (${horario.horaFin})` }))
+        return
+      }
+    }
+
+    // Si todo está bien, limpiar errores
     setErrors(prev => ({ ...prev, horarios: undefined }))
   }
 
@@ -163,6 +194,7 @@ export default function AltaPracticaPage() {
       return 'Debe agregar al menos un horario completo'
     }
 
+    // Validar que horaInicio < horaFin para cada horario
     for (const horario of horariosValidos) {
       const [horaInicioH, horaInicioM] = horario.horaInicio.split(':').map(Number)
       const [horaFinH, horaFinM] = horario.horaFin.split(':').map(Number)
@@ -170,7 +202,7 @@ export default function AltaPracticaPage() {
       const finMinutos = horaFinH * 60 + horaFinM
 
       if (inicioMinutos >= finMinutos) {
-        return 'La hora de inicio debe ser menor que la hora de fin'
+        return `La hora de inicio (${horario.horaInicio}) debe ser menor que la hora de fin (${horario.horaFin})`
       }
     }
 
