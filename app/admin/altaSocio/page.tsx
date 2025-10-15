@@ -47,6 +47,7 @@ export default function AltaSocioPage() {
     contraseña: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [familiarErrors, setFamiliarErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{
       message: string;
@@ -123,35 +124,73 @@ export default function AltaSocioPage() {
       telefono: '',
       contraseña: ''
     });
+    setFamiliarErrors({});
+  };
+
+  const handleRemoveFamiliar = (index: number) => {
+    setFamiliares(prev => prev.filter((_, i) => i !== index));
+    setToast({
+      message: 'Familiar eliminado',
+      type: 'info',
+      isOpen: true
+    });
   };
 
   const handleFamiliarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFamiliarForm(prev => ({ ...prev, [name]: value }));
+    
+    // Validar en tiempo real
+    const error = validateField(name, value);
+    setFamiliarErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleSaveFamiliar = () => {
+  const handleSaveFamiliar = async () => {
     // Validar familiar
-    const familiarErrors: Record<string, string> = {};
+    const tempErrors: Record<string, string> = {};
     Object.keys(familiarForm).forEach(key => {
       const error = validateField(key, familiarForm[key as keyof FamiliarData]);
-      if (error) familiarErrors[key] = error;
+      if (error) tempErrors[key] = error;
     });
 
-    if (Object.keys(familiarErrors).length > 0) {
+    setFamiliarErrors(tempErrors);
+
+    if (Object.keys(tempErrors).length > 0) {
       setToast({
-        message: 'Por favor, complete todos los campos correctamente',
+        message: 'Por favor, corrija los errores marcados en rojo',
         type: 'error',
         isOpen: true
       });
-      return; // No guardar si hay errores
+      return;
     }
 
-    // Verificar que no se duplique DNI o email
+    // Verificar que no se duplique DNI o email con el socio principal
+    if (familiarForm.dni === formData.dni) {
+      setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI no puede ser igual al del socio principal' }));
+      setToast({
+        message: 'El DNI no puede ser igual al del socio principal',
+        type: 'error',
+        isOpen: true
+      });
+      return;
+    }
+
+    if (familiarForm.email === formData.email) {
+      setFamiliarErrors(prev => ({ ...prev, email: 'El email no puede ser igual al del socio principal' }));
+      setToast({
+        message: 'El email no puede ser igual al del socio principal',
+        type: 'error',
+        isOpen: true
+      });
+      return;
+    }
+
+    // Verificar que no se duplique DNI o email con otros familiares
     const dniDuplicado = familiares.some(f => f.dni === familiarForm.dni);
     const emailDuplicado = familiares.some(f => f.email === familiarForm.email);
     
     if (dniDuplicado) {
+      setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI ya fue agregado a otro familiar' }));
       setToast({
         message: 'El DNI ya fue agregado a otro familiar',
         type: 'error',
@@ -161,6 +200,7 @@ export default function AltaSocioPage() {
     }
     
     if (emailDuplicado) {
+      setFamiliarErrors(prev => ({ ...prev, email: 'El email ya fue agregado a otro familiar' }));
       setToast({
         message: 'El email ya fue agregado a otro familiar',
         type: 'error',
@@ -169,8 +209,28 @@ export default function AltaSocioPage() {
       return;
     }
 
+    // Verificar DNI en la base de datos
+    try {
+      const response = await fetch(`/api/socios?dni=${familiarForm.dni}`);
+      const data = await response.json();
+      
+      if (data.existe) {
+        setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI ya está registrado en el sistema' }));
+        setToast({
+          message: 'El DNI ya está registrado en el sistema',
+          type: 'error',
+          isOpen: true
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error al verificar DNI:', error);
+      // Continuar si hay error en la verificación
+    }
+
     setFamiliares(prev => [...prev, familiarForm]);
     setShowModalFamiliar(false);
+    setFamiliarErrors({});
     setToast({
       message: 'Familiar agregado exitosamente',
       type: 'success',
@@ -184,7 +244,7 @@ export default function AltaSocioPage() {
     const hasEmptyFields = requiredFields.some(field => !formData[field as keyof SocioFormData]);
     
     if (formData.tipoSocio === 'FAMILIAR') {
-      return !hasErrors && !hasEmptyFields && familiares.length >= 3;
+      return !hasErrors && !hasEmptyFields && familiares.length >= 2;
     }
     
     return !hasErrors && !hasEmptyFields;
@@ -441,13 +501,53 @@ export default function AltaSocioPage() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">
-                  Se requieren al menos 3 integrantes adicionales para el plan familiar
+                  Se requieren al menos 2 integrantes adicionales para el plan familiar (3 en total)
                 </p>
+                
+                {/* Lista de familiares agregados */}
                 {familiares.length > 0 && (
-                  <div className="mt-2">
+                  <div className="mt-4 space-y-3">
                     <p className="text-sm font-medium text-gray-700">
                       Integrantes agregados: {familiares.length}
                     </p>
+                    {familiares.map((familiar, index) => (
+                      <div 
+                        key={index}
+                        className="bg-gray-50 border border-gray-200 rounded-md p-4 flex justify-between items-start"
+                      >
+                        <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">Nombre:</span>
+                            <span className="ml-2 text-gray-600">{familiar.nombre}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">DNI:</span>
+                            <span className="ml-2 text-gray-600">{familiar.dni}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Email:</span>
+                            <span className="ml-2 text-gray-600">{familiar.email}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Teléfono:</span>
+                            <span className="ml-2 text-gray-600">{familiar.telefono}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium text-gray-700">Fecha de Nacimiento:</span>
+                            <span className="ml-2 text-gray-600">
+                              {new Date(familiar.fechaNacimiento).toLocaleDateString('es-ES')}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFamiliar(index)}
+                          className="ml-4 px-3 py-1 bg-red-500 text-white text-sm rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -493,8 +593,11 @@ export default function AltaSocioPage() {
                   name="nombre"
                   value={familiarForm.nombre}
                   onChange={handleFamiliarInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.nombre ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {familiarErrors.nombre && <p className="text-red-500 text-sm mt-1">{familiarErrors.nombre}</p>}
               </div>
 
               <div>
@@ -506,8 +609,11 @@ export default function AltaSocioPage() {
                   name="dni"
                   value={familiarForm.dni}
                   onChange={handleFamiliarInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.dni ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {familiarErrors.dni && <p className="text-red-500 text-sm mt-1">{familiarErrors.dni}</p>}
               </div>
 
               <div>
@@ -520,8 +626,11 @@ export default function AltaSocioPage() {
                   value={familiarForm.fechaNacimiento}
                   onChange={handleFamiliarInputChange}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.fechaNacimiento ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {familiarErrors.fechaNacimiento && <p className="text-red-500 text-sm mt-1">{familiarErrors.fechaNacimiento}</p>}
               </div>
 
               <div>
@@ -533,8 +642,11 @@ export default function AltaSocioPage() {
                   name="email"
                   value={familiarForm.email}
                   onChange={handleFamiliarInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {familiarErrors.email && <p className="text-red-500 text-sm mt-1">{familiarErrors.email}</p>}
               </div>
 
               <div>
@@ -546,8 +658,11 @@ export default function AltaSocioPage() {
                   name="telefono"
                   value={familiarForm.telefono}
                   onChange={handleFamiliarInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.telefono ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {familiarErrors.telefono && <p className="text-red-500 text-sm mt-1">{familiarErrors.telefono}</p>}
               </div>
 
               <div>
@@ -571,9 +686,12 @@ export default function AltaSocioPage() {
                   name="contraseña"
                   value={familiarForm.contraseña}
                   onChange={handleFamiliarInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    familiarErrors.contraseña ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial"
                 />
+                {familiarErrors.contraseña && <p className="text-red-500 text-sm mt-1">{familiarErrors.contraseña}</p>}
               </div>
             </div>
 

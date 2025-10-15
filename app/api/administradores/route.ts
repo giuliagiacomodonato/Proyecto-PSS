@@ -72,13 +72,6 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (!realizadoPorId) {
-      return NextResponse.json(
-        { error: 'El ID del usuario que realiza la baja es requerido' },
-        { status: 400 }
-      )
-    }
-
     // Validar formato de DNI
     if (!/^\d{7,8}$/.test(dni)) {
       return NextResponse.json(
@@ -102,16 +95,31 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Verificar que el usuario que realiza la baja existe
-    const usuarioRealizaBaja = await prisma.usuario.findUnique({
-      where: { id: realizadoPorId }
-    })
-
-    if (!usuarioRealizaBaja) {
-      return NextResponse.json(
-        { error: 'El usuario que realiza la baja no existe' },
-        { status: 404 }
-      )
+    // Buscar usuario que realiza la baja (puede ser null si no se proporciona)
+    let usuarioRealizaBaja = null
+    if (realizadoPorId) {
+      usuarioRealizaBaja = await prisma.usuario.findUnique({
+        where: { id: realizadoPorId }
+      })
+      
+      if (!usuarioRealizaBaja) {
+        // Si no se encuentra, buscar cualquier admin disponible
+        console.log('Usuario especificado no encontrado, buscando cualquier admin...')
+        usuarioRealizaBaja = await prisma.usuario.findFirst({
+          where: { 
+            rol: 'ADMIN',
+            id: { not: administrador.id } // No el mismo que se está eliminando
+          }
+        })
+      }
+    } else {
+      // Si no se proporciona ID, buscar cualquier admin disponible
+      usuarioRealizaBaja = await prisma.usuario.findFirst({
+        where: { 
+          rol: 'ADMIN',
+          id: { not: administrador.id } // No el mismo que se está eliminando
+        }
+      })
     }
 
     // Usar transacción para garantizar atomicidad
@@ -125,10 +133,10 @@ export async function DELETE(request: NextRequest) {
           usuarioEliminadoDni: administrador.dni,
           usuarioEliminadoEmail: administrador.email,
           rolUsuarioEliminado: administrador.rol,
-          // Snapshot del usuario que realiza la baja
-          realizadoPorId: realizadoPorId,
-          realizadoPorNombre: usuarioRealizaBaja.nombre,
-          realizadoPorDni: usuarioRealizaBaja.dni,
+          // Snapshot del usuario que realiza la baja (puede ser null)
+          realizadoPorId: usuarioRealizaBaja ? usuarioRealizaBaja.id : null,
+          realizadoPorNombre: usuarioRealizaBaja ? usuarioRealizaBaja.nombre : 'Sistema',
+          realizadoPorDni: usuarioRealizaBaja ? usuarioRealizaBaja.dni : 'N/A',
           motivo: 'Baja de administrador desde el sistema'
         }
       })

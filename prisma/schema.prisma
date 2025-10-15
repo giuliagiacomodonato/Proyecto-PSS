@@ -59,6 +59,7 @@ model Usuario {
   // Campos específicos para SOCIO
   tipoSocio        TipoSocio?  // Solo para socios
   direccion        String?     // Solo para socios
+  planFamiliarId   String?     // ID único del plan familiar (todos los miembros comparten el mismo)
   familiarId       Int?        // Referencia a otro socio familiar
   familiar         Usuario?    @relation("SocioFamiliar", fields: [familiarId], references: [id])
   familiares       Usuario[]   @relation("SocioFamiliar")

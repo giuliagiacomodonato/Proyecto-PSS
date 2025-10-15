@@ -1,26 +1,18 @@
 "use client";
 import { useState } from "react";
+
 import AdminLayout from "../../components/AdminLayout";
 
 type Socio = {
-  nombre: string;
-  dni: string;
-  fechaNacimiento: string;
-  correo: string;
-  telefono: string;
-  direccion: string;
-  tipo: "Individual" | "Familiar";
-};
-
-const initialSocio: Socio = {
-  nombre: "",
-  dni: "",
-  fechaNacimiento: "",
-  correo: "",
-  telefono: "",
-  direccion: "",
-  tipo: "Individual",
-};
+  id: number
+  nombre: string
+  dni: string
+  fechaNacimiento: string
+  email: string
+  telefono: string
+  direccion: string
+  tipoSocio: 'INDIVIDUAL' | 'FAMILIAR'
+}
 
 export default function ModificarSocio() {
   const [dniBusqueda, setDniBusqueda] = useState("");
@@ -29,28 +21,43 @@ export default function ModificarSocio() {
   const [mensaje, setMensaje] = useState("");
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
 
-  // Simulación de búsqueda (reemplazar por fetch real)
-  const buscarSocio = async () => {
-    if (dniBusqueda === "12345678") {
-      const socioEncontrado: Socio = {
-        nombre: "Juan Pérez",
-        dni: "12345678",
-        fechaNacimiento: "1990-01-01",
-        correo: "juan@mail.com",
-        telefono: "123456789",
-        direccion: "Calle 123, Ciudad",
-        tipo: "Familiar",
-      };
-      setSocio(socioEncontrado);
-      setEditSocio({ ...socioEncontrado });
-      setMensaje("");
-    } else {
-      setSocio(null);
-      setEditSocio(null);
-      setMensaje("Socio no encontrado.");
-    }
-  };
+ const buscarSocio = async () => {
+  try {
+    setMensaje('')
+    setErrores({})
+    const res = await fetch(`/api/socios?dni=${dniBusqueda}`, { cache: 'no-store' })
 
+    if (!res.ok) {
+      setSocio(null)
+      setEditSocio(null)
+      setMensaje('Socio no encontrado.')
+      return
+    }
+
+    const data = await res.json()
+    const socioEncontrado = data.socio
+
+    if (!socioEncontrado) {
+      setSocio(null)
+      setEditSocio(null)
+      setMensaje('Socio no encontrado.')
+      return
+    }
+
+    const normalizado: Socio = {
+      ...socioEncontrado,
+      fechaNacimiento: socioEncontrado.fechaNacimiento?.slice(0, 10) ?? '',
+      telefono: socioEncontrado.telefono ?? '',
+      direccion: socioEncontrado.direccion ?? '',
+    }
+
+    setSocio(normalizado)
+    setEditSocio(normalizado)
+  } catch (error) {
+    console.error('Error al buscar socio:', error)
+    setMensaje('Error al buscar el socio.')
+  }
+}
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editSocio) return;
     setEditSocio({ ...editSocio, [e.target.name]: e.target.value });
@@ -58,26 +65,63 @@ export default function ModificarSocio() {
 
   const handleTipoChange = (tipo: "Individual" | "Familiar") => {
     if (!editSocio) return;
-    setEditSocio({ ...editSocio, tipo });
+    setEditSocio({ ...editSocio, tipoSocio: tipo === "Individual" ? "INDIVIDUAL" : "FAMILIAR" });
   };
 
   const validar = () => {
-    const errs: { [key: string]: string } = {};
-    if (editSocio) {
-      if (!editSocio.correo.includes("@")) errs.correo = "Correo inválido";
-      if (!/^\d+$/.test(editSocio.telefono)) errs.telefono = "Teléfono inválido";
-      if (!editSocio.direccion) errs.direccion = "Dirección requerida";
+  const errs: { [key: string]: string } = {}
+  if (editSocio) {
+    // Email es requerido y debe ser válido
+    if (!editSocio.email || !editSocio.email.includes('@')) {
+      errs.email = 'Correo inválido o requerido'
     }
-    setErrores(errs);
-    return Object.keys(errs).length === 0;
-  };
+    // Teléfono no es requerido, pero si se proporciona debe ser válido
+    if (editSocio.telefono && !/^\d*$/.test(editSocio.telefono)) {
+      errs.telefono = 'Teléfono debe contener solo números'
+    }
+    // Dirección no es requerida
+  }
+  setErrores(errs)
+  return Object.keys(errs).length === 0
+}
 
-  const handleGuardar = async () => {
-    if (!validar() || !editSocio) return;
-    setMensaje("Datos del socio modificados exitosamente.");
-    setSocio(editSocio);
-  };
+ const handleGuardar = async () => {
+  if (!validar() || !editSocio) return
+  try {
+    const res = await fetch('/api/socios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editSocio.id,
+        email: editSocio.email,
+        telefono: editSocio.telefono,
+        direccion: editSocio.direccion,
+        tipoSocio: editSocio.tipoSocio,
+      }),
+    })
 
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: 'Error desconocido' }))
+      console.error('Error del servidor:', errorData)
+      setMensaje(errorData.message || 'No se pudo actualizar el socio.')
+      return
+    }
+    
+    const result = await res.json()
+    
+    // Construir el mensaje con información de socios convertidos si aplica
+    let mensajeFinal = result.message
+    if (result.sociosConvertidos && result.sociosConvertidos.length > 0) {
+      mensajeFinal += `\n\nSocios convertidos a INDIVIDUAL:\n${result.sociosConvertidos.join('\n')}`
+    }
+    
+    setMensaje(mensajeFinal)
+    setSocio(editSocio)
+  } catch (error) {
+    console.error('Error al actualizar socio:', error)
+    setMensaje('Error de conexión. No se pudo actualizar el socio.')
+  }
+}
   const handleCancelar = () => {
     setEditSocio(socio);
     setMensaje("");
@@ -103,7 +147,11 @@ export default function ModificarSocio() {
             Buscar
           </button>
         </div>
-        {mensaje && <div className="mb-2 text-blue-600">{mensaje}</div>}
+        {mensaje && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-blue-800 whitespace-pre-line">{mensaje}</p>
+          </div>
+        )}
         {editSocio && (
           <form
             onSubmit={(e) => {
@@ -155,18 +203,18 @@ export default function ModificarSocio() {
                 </label>
                 <input
                   type="email"
-                  name="correo"
-                  value={editSocio.correo}
+                  name="email"
+                  value={editSocio.email}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border rounded-md"
                 />
-                {errores.correo && (
-                  <span className="text-red-500 text-sm">{errores.correo}</span>
+                {errores.email && (
+                  <span className="text-red-500 text-sm">{errores.email}</span>
                 )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono de Contacto
+                  Teléfono de Contacto <span className="text-gray-400 text-xs">(opcional)</span>
                 </label>
                 <input
                   type="text"
@@ -181,7 +229,7 @@ export default function ModificarSocio() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dirección
+                  Dirección <span className="text-gray-400 text-xs">(opcional)</span>
                 </label>
                 <input
                   type="text"
@@ -205,7 +253,7 @@ export default function ModificarSocio() {
                     type="radio"
                     name="tipo"
                     value="Individual"
-                    checked={editSocio.tipo === "Individual"}
+                    checked={editSocio.tipoSocio === "INDIVIDUAL"}
                     onChange={() => handleTipoChange("Individual")}
                     className="mr-2"
                   />
@@ -216,7 +264,7 @@ export default function ModificarSocio() {
                     type="radio"
                     name="tipo"
                     value="Familiar"
-                    checked={editSocio.tipo === "Familiar"}
+                    checked={editSocio.tipoSocio === "FAMILIAR"}
                     onChange={() => handleTipoChange("Familiar")}
                     className="mr-2"
                   />
