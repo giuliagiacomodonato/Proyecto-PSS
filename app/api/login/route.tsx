@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar usuario por email en la base de datos
-    const usuario = await prisma.usuario.findUnique({
+    const usuario = await prisma.usuario.findFirst({
       where: { email },
       select: {
         id: true,
@@ -42,6 +42,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que el usuario tenga una contraseña almacenada
+    if (!usuario.contraseña) {
+      return NextResponse.json(
+        { error: 'Usuario no tiene contraseña registrada' },
+        { status: 401 }
       )
     }
 

@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ya existe un usuario con ese DNI" }, { status: 400 })
     }
 
-    // Verificar si el email ya existe
-    const existingUserByEmail = await prisma.usuario.findUnique({
+    // Verificar si el email ya existe (email ya no es unique en el schema)
+    const existingUserByEmail = await prisma.usuario.findFirst({
       where: { email },
     })
 
