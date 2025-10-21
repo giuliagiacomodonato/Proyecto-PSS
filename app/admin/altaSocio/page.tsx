@@ -22,6 +22,7 @@ interface FamiliarData {
   email: string;
   telefono: string;
   contraseña: string;
+  esMenorDe12: boolean;
 }
 
 export default function AltaSocioPage() {
@@ -36,6 +37,19 @@ export default function AltaSocioPage() {
     tipoSocio: 'INDIVIDUAL'
   });
 
+  // Función para calcular la edad
+  const calcularEdad = (fechaNacimiento: string): number => {
+    if (!fechaNacimiento) return 0;
+    const hoy = new Date();
+    const nacimiento = new Date(fechaNacimiento);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mes = hoy.getMonth() - nacimiento.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+      edad--;
+    }
+    return edad;
+  };
+
   const [familiares, setFamiliares] = useState<FamiliarData[]>([]);
   const [showModalFamiliar, setShowModalFamiliar] = useState(false);
   const [familiarForm, setFamiliarForm] = useState<FamiliarData>({
@@ -44,7 +58,8 @@ export default function AltaSocioPage() {
     fechaNacimiento: '',
     email: '',
     telefono: '',
-    contraseña: ''
+    contraseña: '',
+    esMenorDe12: false
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [familiarErrors, setFamiliarErrors] = useState<Record<string, string>>({});
@@ -75,6 +90,11 @@ export default function AltaSocioPage() {
         const fechaNacimiento = new Date(value);
         const hoy = new Date();
         if (fechaNacimiento > hoy) return 'La fecha de nacimiento no puede ser futura';
+        const edad = calcularEdad(value);
+        // Validar edad mínima de 12 años para socio individual o cabeza de familia
+        if (formData.tipoSocio === 'INDIVIDUAL' && edad < 12) {
+          return 'El socio individual debe tener al menos 12 años';
+        }
         break;
       case 'email':
         if (!value.trim()) return 'El email es obligatorio';
@@ -115,6 +135,17 @@ export default function AltaSocioPage() {
   };
 
   const handleAddFamiliar = () => {
+    // Validar que el socio principal tenga al menos 12 años
+    const edadPrincipal = calcularEdad(formData.fechaNacimiento);
+    if (edadPrincipal < 12) {
+      setToast({
+        message: 'El socio cabeza de familia debe tener al menos 12 años',
+        type: 'error',
+        isOpen: true
+      });
+      return;
+    }
+    
     setShowModalFamiliar(true);
     setFamiliarForm({
       nombre: '',
@@ -122,7 +153,8 @@ export default function AltaSocioPage() {
       fechaNacimiento: '',
       email: '',
       telefono: '',
-      contraseña: ''
+      contraseña: '',
+      esMenorDe12: false
     });
     setFamiliarErrors({});
   };
@@ -138,74 +170,165 @@ export default function AltaSocioPage() {
 
   const handleFamiliarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFamiliarForm(prev => ({ ...prev, [name]: value }));
     
-    // Validar en tiempo real
-    const error = validateField(name, value);
-    setFamiliarErrors(prev => ({ ...prev, [name]: error }));
+    // Calcular edad si es el campo de fecha de nacimiento
+    if (name === 'fechaNacimiento') {
+      const edad = calcularEdad(value);
+      const esMenor = edad < 12;
+      
+      setFamiliarForm(prev => ({
+        ...prev,
+        [name]: value,
+        esMenorDe12: esMenor,
+        // Si es menor, copiar datos del socio principal
+        email: esMenor ? formData.email : prev.email,
+        telefono: esMenor ? formData.telefono : prev.telefono,
+        contraseña: esMenor ? '' : prev.contraseña
+      }));
+      
+      // Validar fecha de nacimiento
+      validateFamiliarField('fechaNacimiento', value);
+    } else {
+      setFamiliarForm(prev => ({ ...prev, [name]: value }));
+      // Validar campo en tiempo real (solo si no es un campo boolean)
+      if (name !== 'esMenorDe12') {
+        validateFamiliarField(name, value);
+      }
+    }
+  };
+
+  const validateFamiliarField = (field: string, value: string) => {
+    const newErrors = { ...familiarErrors };
+    
+    switch (field) {
+      case 'nombre':
+        if (!value.trim()) {
+          newErrors.nombre = 'El nombre es obligatorio';
+        } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) {
+          newErrors.nombre = 'Solo se permiten caracteres';
+        } else {
+          delete newErrors.nombre;
+        }
+        break;
+      case 'dni':
+        if (!value.trim()) {
+          newErrors.dni = 'El DNI es obligatorio';
+        } else if (!/^\d{7,8}$/.test(value)) {
+          newErrors.dni = 'El DNI debe tener 7-8 dígitos';
+        } else if (value === formData.dni) {
+          newErrors.dni = 'El DNI no puede ser igual al del socio principal';
+        } else if (familiares.some(f => f.dni === value)) {
+          newErrors.dni = 'El DNI ya fue agregado a otro familiar';
+        } else {
+          delete newErrors.dni;
+        }
+        break;
+      case 'fechaNacimiento':
+        if (!value.trim()) {
+          newErrors.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
+        } else {
+          const fechaNacimiento = new Date(value);
+          const hoy = new Date();
+          if (fechaNacimiento > hoy) {
+            newErrors.fechaNacimiento = 'La fecha de nacimiento no puede ser futura';
+          } else {
+            delete newErrors.fechaNacimiento;
+          }
+        }
+        break;
+      case 'email':
+        // Solo validar si NO es menor
+        if (!familiarForm.esMenorDe12) {
+          if (!value.trim()) {
+            newErrors.email = 'El email es obligatorio';
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            newErrors.email = 'Email inválido';
+          } else if (value === formData.email) {
+            newErrors.email = 'El email no puede ser igual al del socio principal';
+          } else if (familiares.some(f => !f.esMenorDe12 && f.email === value)) {
+            newErrors.email = 'El email ya fue agregado a otro familiar';
+          } else {
+            delete newErrors.email;
+          }
+        } else {
+          delete newErrors.email;
+        }
+        break;
+      case 'telefono':
+        // Solo validar si NO es menor
+        if (!familiarForm.esMenorDe12) {
+          if (!value.trim()) {
+            newErrors.telefono = 'El teléfono es obligatorio';
+          } else if (!/^\d+$/.test(value)) {
+            newErrors.telefono = 'Solo se permiten números';
+          } else {
+            delete newErrors.telefono;
+          }
+        } else {
+          delete newErrors.telefono;
+        }
+        break;
+      case 'contraseña':
+        // Solo validar si NO es menor
+        if (!familiarForm.esMenorDe12) {
+          if (!value.trim()) {
+            newErrors.contraseña = 'La contraseña es obligatoria';
+          } else if (value.length < 8) {
+            newErrors.contraseña = 'Mínimo 8 caracteres';
+          } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(value)) {
+            newErrors.contraseña = 'Debe contener mayúscula, minúscula, número y carácter especial';
+          } else {
+            delete newErrors.contraseña;
+          }
+        } else {
+          delete newErrors.contraseña;
+        }
+        break;
+    }
+    
+    setFamiliarErrors(newErrors);
+  };
+
+  const isFamiliarFormValid = () => {
+    // Validar que no haya errores
+    if (Object.keys(familiarErrors).length > 0) return false;
+    
+    // Campos siempre requeridos
+    if (!familiarForm.nombre.trim() || !familiarForm.dni.trim() || !familiarForm.fechaNacimiento) {
+      return false;
+    }
+    
+    // Si NO es menor, validar email, telefono y contraseña
+    if (!familiarForm.esMenorDe12) {
+      if (!familiarForm.email.trim() || !familiarForm.telefono.trim() || !familiarForm.contraseña.trim()) {
+        return false;
+      }
+    }
+    
+    return true;
   };
 
   const handleSaveFamiliar = async () => {
-    // Validar familiar
-    const tempErrors: Record<string, string> = {};
-    Object.keys(familiarForm).forEach(key => {
-      const error = validateField(key, familiarForm[key as keyof FamiliarData]);
-      if (error) tempErrors[key] = error;
-    });
-
-    setFamiliarErrors(tempErrors);
-
-    if (Object.keys(tempErrors).length > 0) {
-      setToast({
-        message: 'Por favor, corrija los errores marcados en rojo',
-        type: 'error',
-        isOpen: true
-      });
-      return;
-    }
-
-    // Verificar que no se duplique DNI o email con el socio principal
-    if (familiarForm.dni === formData.dni) {
-      setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI no puede ser igual al del socio principal' }));
-      setToast({
-        message: 'El DNI no puede ser igual al del socio principal',
-        type: 'error',
-        isOpen: true
-      });
-      return;
-    }
-
-    if (familiarForm.email === formData.email) {
-      setFamiliarErrors(prev => ({ ...prev, email: 'El email no puede ser igual al del socio principal' }));
-      setToast({
-        message: 'El email no puede ser igual al del socio principal',
-        type: 'error',
-        isOpen: true
-      });
-      return;
-    }
-
-    // Verificar que no se duplique DNI o email con otros familiares
-    const dniDuplicado = familiares.some(f => f.dni === familiarForm.dni);
-    const emailDuplicado = familiares.some(f => f.email === familiarForm.email);
+    // Validar todos los campos
+    validateFamiliarField('nombre', familiarForm.nombre);
+    validateFamiliarField('dni', familiarForm.dni);
+    validateFamiliarField('fechaNacimiento', familiarForm.fechaNacimiento);
     
-    if (dniDuplicado) {
-      setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI ya fue agregado a otro familiar' }));
-      setToast({
-        message: 'El DNI ya fue agregado a otro familiar',
-        type: 'error',
-        isOpen: true
-      });
+    if (!familiarForm.esMenorDe12) {
+      validateFamiliarField('email', familiarForm.email);
+      validateFamiliarField('telefono', familiarForm.telefono);
+      validateFamiliarField('contraseña', familiarForm.contraseña);
+    }
+
+    // Si el formulario no es válido, no continuar
+    if (!isFamiliarFormValid()) {
       return;
     }
-    
-    if (emailDuplicado) {
-      setFamiliarErrors(prev => ({ ...prev, email: 'El email ya fue agregado a otro familiar' }));
-      setToast({
-        message: 'El email ya fue agregado a otro familiar',
-        type: 'error',
-        isOpen: true
-      });
+
+    // Validar edad del cabeza de familia
+    const edadPrincipal = calcularEdad(formData.fechaNacimiento);
+    if (edadPrincipal < 12) {
+      setFamiliarErrors({ general: 'El cabeza de familia debe tener al menos 12 años' });
       return;
     }
 
@@ -216,11 +339,6 @@ export default function AltaSocioPage() {
       
       if (data.existe) {
         setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI ya está registrado en el sistema' }));
-        setToast({
-          message: 'El DNI ya está registrado en el sistema',
-          type: 'error',
-          isOpen: true
-        });
         return;
       }
     } catch (error) {
@@ -616,7 +734,7 @@ export default function AltaSocioPage() {
                 {familiarErrors.dni && <p className="text-red-500 text-sm mt-1">{familiarErrors.dni}</p>}
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Fecha de Nacimiento *
                 </label>
@@ -631,69 +749,124 @@ export default function AltaSocioPage() {
                   }`}
                 />
                 {familiarErrors.fechaNacimiento && <p className="text-red-500 text-sm mt-1">{familiarErrors.fechaNacimiento}</p>}
+                {familiarForm.fechaNacimiento && familiarForm.esMenorDe12 && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    ⚠️ Menor de 12 años: No se creará cuenta. Se usarán los datos del cabeza de familia.
+                  </p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Electrónico *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={familiarForm.email}
-                  onChange={handleFamiliarInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    familiarErrors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {familiarErrors.email && <p className="text-red-500 text-sm mt-1">{familiarErrors.email}</p>}
-              </div>
+              {!familiarForm.esMenorDe12 && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Correo Electrónico *
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={familiarForm.email}
+                      onChange={handleFamiliarInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        familiarErrors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {familiarErrors.email && <p className="text-red-500 text-sm mt-1">{familiarErrors.email}</p>}
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono de Contacto *
-                </label>
-                <input
-                  type="tel"
-                  name="telefono"
-                  value={familiarForm.telefono}
-                  onChange={handleFamiliarInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    familiarErrors.telefono ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {familiarErrors.telefono && <p className="text-red-500 text-sm mt-1">{familiarErrors.telefono}</p>}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Teléfono de Contacto *
+                    </label>
+                    <input
+                      type="tel"
+                      name="telefono"
+                      value={familiarForm.telefono}
+                      onChange={handleFamiliarInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        familiarErrors.telefono ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {familiarErrors.telefono && <p className="text-red-500 text-sm mt-1">{familiarErrors.telefono}</p>}
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Registro
-                </label>
-                <input
-                  type="text"
-                  value={new Date().toLocaleDateString('es-ES')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  readOnly
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Registro
+                    </label>
+                    <input
+                      type="text"
+                      value={new Date().toLocaleDateString('es-ES')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      readOnly
+                    />
+                  </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña *
-                </label>
-                <input
-                  type="password"
-                  name="contraseña"
-                  value={familiarForm.contraseña}
-                  onChange={handleFamiliarInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    familiarErrors.contraseña ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial"
-                />
-                {familiarErrors.contraseña && <p className="text-red-500 text-sm mt-1">{familiarErrors.contraseña}</p>}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contraseña *
+                    </label>
+                    <input
+                      type="password"
+                      name="contraseña"
+                      value={familiarForm.contraseña}
+                      onChange={handleFamiliarInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        familiarErrors.contraseña ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial"
+                    />
+                    {familiarErrors.contraseña && <p className="text-red-500 text-sm mt-1">{familiarErrors.contraseña}</p>}
+                  </div>
+                </>
+              )}
+
+              {familiarForm.esMenorDe12 && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Correo Electrónico (del cabeza de familia)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      readOnly
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Se usa el email del cabeza de familia automáticamente</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Teléfono (del cabeza de familia)
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.telefono}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      readOnly
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Se usa el teléfono del cabeza de familia automáticamente</p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <p className="text-sm text-blue-800">
+                        📝 <strong>Nota:</strong> Este menor de 12 años no tendrá cuenta de acceso al sistema. Solo se registrarán sus datos básicos en el grupo familiar.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+
+            {familiarErrors.general && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{familiarErrors.general}</p>
+              </div>
+            )}
 
             <div className="flex space-x-4 mt-6">
               <button
@@ -706,7 +879,12 @@ export default function AltaSocioPage() {
               <button
                 type="button"
                 onClick={handleSaveFamiliar}
-                className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={!isFamiliarFormValid()}
+                className={`px-6 py-2 rounded-md focus:outline-none focus:ring-2 transition-colors ${
+                  isFamiliarFormValid()
+                    ? 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-500'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 ✓ Registrar
               </button>

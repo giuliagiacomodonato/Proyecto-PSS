@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Sidebar from "@/app/components/Sidebar"
-import Toast from "@/app/components/Toast"
 
 interface PracticaDeportiva {
   id: number
@@ -22,11 +21,6 @@ export default function AltaEntrenadorPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [practicasDeportivas, setPracticasDeportivas] = useState<PracticaDeportiva[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState("")
-  const [toastType, setToastType] = useState<"success" | "error" | "info" | "warning">("success")
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -54,6 +48,92 @@ export default function AltaEntrenadorPage() {
     }
     fetchPracticas()
   }, [])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    validateField(field, value)
+  }
+
+  const validateField = (field: string, value: string) => {
+    const newErrors = { ...errors }
+    
+    switch (field) {
+      case 'nombre':
+        if (!value.trim()) {
+          newErrors.nombre = 'El nombre es requerido'
+        } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) {
+          newErrors.nombre = 'El nombre solo debe contener letras'
+        } else {
+          delete newErrors.nombre
+        }
+        break
+      case 'dni':
+        if (!value.trim()) {
+          newErrors.dni = 'El DNI es requerido'
+        } else if (!/^\d{7,8}$/.test(value)) {
+          newErrors.dni = 'El DNI debe tener 7 u 8 dígitos'
+        } else {
+          delete newErrors.dni
+        }
+        break
+      case 'fechaNacimiento':
+        if (!value) {
+          newErrors.fechaNacimiento = 'La fecha de nacimiento es requerida'
+        } else {
+          delete newErrors.fechaNacimiento
+        }
+        break
+      case 'email':
+        if (!value.trim()) {
+          newErrors.email = 'El correo electrónico es requerido'
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          newErrors.email = 'El correo electrónico no es válido'
+        } else {
+          delete newErrors.email
+        }
+        break
+      case 'telefono':
+        if (!value.trim()) {
+          newErrors.telefono = 'El teléfono es requerido'
+        } else if (!/^\d+$/.test(value)) {
+          newErrors.telefono = 'El teléfono solo debe contener números'
+        } else {
+          delete newErrors.telefono
+        }
+        break
+      case 'practicaDeportivaId':
+        if (!value) {
+          newErrors.practicaDeportivaId = 'Debe seleccionar una práctica deportiva'
+        } else {
+          delete newErrors.practicaDeportivaId
+        }
+        break
+      case 'contraseña':
+        if (!value) {
+          newErrors.contraseña = 'La contraseña es requerida'
+        } else if (value.length < 8) {
+          newErrors.contraseña = 'La contraseña debe tener al menos 8 caracteres'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@\$%*?&._\-!]).+$/.test(value)) {
+          newErrors.contraseña = 'La contraseña debe contener mayúscula, minúscula, número y carácter especial'
+        } else {
+          delete newErrors.contraseña
+        }
+        break
+    }
+    
+    setErrors(newErrors)
+  }
+
+  const isFormValid = () => {
+    return Object.keys(errors).length === 0 &&
+           formData.nombre.trim() !== '' &&
+           formData.dni.trim() !== '' &&
+           formData.fechaNacimiento !== '' &&
+           formData.email.trim() !== '' &&
+           formData.telefono.trim() !== '' &&
+           formData.practicaDeportivaId !== '' &&
+           formData.contraseña !== ''
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -104,7 +184,6 @@ export default function AltaEntrenadorPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
 
     if (!validateForm()) {
       return
@@ -127,13 +206,14 @@ export default function AltaEntrenadorPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data?.errors && typeof data.errors === 'object') {
+          setErrors(data.errors)
+          return
+        }
         throw new Error(data.error || "Error al registrar el entrenador")
       }
 
-      // Mostrar toast, limpiar formulario y errores. No redirigimos para que el usuario vea el toast.
-      setToastMessage("Entrenador registrado exitosamente")
-      setToastType("success")
-      setToastOpen(true)
+      // Limpiar formulario y mostrar éxito
       setFormData({
         nombre: "",
         dni: "",
@@ -143,9 +223,14 @@ export default function AltaEntrenadorPage() {
         practicaDeportivaId: "",
         contraseña: "",
       })
-      setErrors({})
+      setErrors({ general: '✓ Entrenador registrado exitosamente' })
+      
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setErrors({})
+      }, 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al registrar el entrenador")
+      setErrors({ general: err instanceof Error ? err.message : "Error al registrar el entrenador" })
     } finally {
       setLoading(false)
     }
@@ -158,7 +243,6 @@ export default function AltaEntrenadorPage() {
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar />
-      <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={() => setToastOpen(false)} />
 
       <div className="flex-1 p-8">
         <div className="mb-6 text-sm text-gray-800">
@@ -169,7 +253,11 @@ export default function AltaEntrenadorPage() {
           <h1 className="mb-6 text-2xl font-semibold text-black">Registrar Nuevo Entrenador</h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {errors.general && (
+              <div className={`p-3 rounded-md ${errors.general.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {errors.general}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="nombre">
@@ -179,7 +267,7 @@ export default function AltaEntrenadorPage() {
                 id="nombre"
                 placeholder="Ingrese el nombre completo"
                 value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                onChange={(e) => handleInputChange('nombre', e.target.value)}
                 className={errors.nombre ? "border-red-500" : ""}
               />
               {errors.nombre && <p className="text-sm text-red-500">{errors.nombre}</p>}
@@ -194,7 +282,7 @@ export default function AltaEntrenadorPage() {
                   id="dni"
                   placeholder="12345678"
                   value={formData.dni}
-                  onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                  onChange={(e) => handleInputChange('dni', e.target.value)}
                   className={errors.dni ? "border-red-500" : ""}
                 />
                 {errors.dni && <p className="text-sm text-red-500">{errors.dni}</p>}
@@ -208,7 +296,7 @@ export default function AltaEntrenadorPage() {
                   id="fechaNacimiento"
                   type="date"
                   value={formData.fechaNacimiento}
-                  onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
+                  onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
                   className={errors.fechaNacimiento ? "border-red-500" : ""}
                 />
                 {errors.fechaNacimiento && <p className="text-sm text-red-500">{errors.fechaNacimiento}</p>}
@@ -224,7 +312,7 @@ export default function AltaEntrenadorPage() {
                 type="email"
                 placeholder="admin@ejemplo.com"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 className={errors.email ? "border-red-500" : ""}
               />
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
@@ -239,7 +327,7 @@ export default function AltaEntrenadorPage() {
                   id="telefono"
                   placeholder="123456789"
                   value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  onChange={(e) => handleInputChange('telefono', e.target.value)}
                   className={errors.telefono ? "border-red-500" : ""}
                 />
                 {errors.telefono && <p className="text-sm text-red-500">{errors.telefono}</p>}
@@ -251,7 +339,7 @@ export default function AltaEntrenadorPage() {
                 </Label>
                 <Select
                   value={formData.practicaDeportivaId}
-                  onValueChange={(value) => setFormData({ ...formData, practicaDeportivaId: value })}
+                  onValueChange={(value) => handleInputChange('practicaDeportivaId', value)}
                 >
                   <SelectTrigger className={errors.practicaDeportivaId ? "border-red-500" : ""}>
                     <SelectValue placeholder="Seleccione de la lista" />
@@ -278,7 +366,7 @@ export default function AltaEntrenadorPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Ingrese la contraseña"
                   value={formData.contraseña}
-                  onChange={(e) => setFormData({ ...formData, contraseña: e.target.value })}
+                  onChange={(e) => handleInputChange('contraseña', e.target.value)}
                   className={errors.contraseña ? "border-red-500 pr-10" : "pr-10"}
                 />
                 <button
@@ -305,7 +393,7 @@ export default function AltaEntrenadorPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading} className="flex-1 bg-gray-800 hover:bg-gray-900">
+              <Button type="submit" disabled={loading || !isFormValid()} className="flex-1 bg-gray-800 hover:bg-gray-900">
                 {loading ? "Registrando..." : "Registrar"}
               </Button>
             </div>

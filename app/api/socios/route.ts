@@ -8,6 +8,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { socio, familiares } = body;
 
+    // Función para calcular la edad
+    const calcularEdad = (fechaNacimiento: Date): number => {
+      const hoy = new Date();
+      const nacimiento = new Date(fechaNacimiento);
+      let edad = hoy.getFullYear() - nacimiento.getFullYear();
+      const mes = hoy.getMonth() - nacimiento.getMonth();
+      if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+      }
+      return edad;
+    };
+
     // Validar que el usuario sea administrador (esto se puede mejorar con autenticación)
     // Por ahora, asumimos que si llega aquí es porque es admin
     
@@ -15,6 +27,15 @@ export async function POST(request: NextRequest) {
     if (!socio.nombre || !socio.dni || !socio.email || !socio.telefono || !socio.contraseña) {
       return NextResponse.json(
         { message: 'Faltan campos obligatorios del socio principal' },
+        { status: 400 }
+      );
+    }
+
+    // Validar edad del socio principal (mínimo 12 años)
+    const edadSocioPrincipal = calcularEdad(new Date(socio.fechaNacimiento));
+    if (edadSocioPrincipal < 12) {
+      return NextResponse.json(
+        { message: 'El socio debe tener al menos 12 años para crear una cuenta' },
         { status: 400 }
       );
     }
@@ -31,9 +52,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que el email no esté en uso
+    // Verificar que el email no esté en uso (solo para usuarios mayores de 12 años)
     const emailExistente = await prisma.usuario.findFirst({
-      where: { email: socio.email }
+      where: { 
+        email: socio.email,
+        esMenorDe12: false // Solo verificar en usuarios que NO son menores
+      }
     });
 
     if (emailExistente) {
@@ -75,6 +99,7 @@ export async function POST(request: NextRequest) {
         contraseña: hashedPassword,
         tipoSocio: socio.tipoSocio,
         planFamiliarId: planFamiliarId,
+        esMenorDe12: false, // El socio principal siempre es mayor de 12
         fechaAlta: new Date()
       }
     });
@@ -102,6 +127,13 @@ export async function POST(request: NextRequest) {
       let familiarCount = 0;
       for (const familiar of familiares) {
         familiarCount++;
+        
+        // Calcular edad del familiar
+        const edadFamiliar = calcularEdad(new Date(familiar.fechaNacimiento));
+        const esMenor = edadFamiliar < 12;
+
+        console.log(`   ${familiarCount}. Procesando familiar: ${familiar.nombre} (Edad: ${edadFamiliar} años, Menor: ${esMenor})`);
+
         // Verificar que el DNI del familiar no esté en uso
         const dniFamiliarExistente = await prisma.usuario.findFirst({
           where: { dni: familiar.dni }
@@ -114,41 +146,53 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Verificar que el email del familiar no esté en uso
-        const emailFamiliarExistente = await prisma.usuario.findFirst({
-          where: { email: familiar.email }
-        });
+        // Si NO es menor, verificar que el email no esté en uso
+        if (!esMenor) {
+          const emailFamiliarExistente = await prisma.usuario.findFirst({
+            where: { 
+              email: familiar.email,
+              esMenorDe12: false // Solo verificar en usuarios que NO son menores
+            }
+          });
 
-        if (emailFamiliarExistente) {
-          return NextResponse.json(
-            { message: `El email ${familiar.email} ya está registrado` },
-            { status: 400 }
-          );
+          if (emailFamiliarExistente) {
+            return NextResponse.json(
+              { message: `El email ${familiar.email} ya está registrado` },
+              { status: 400 }
+            );
+          }
         }
 
-        // Hash de la contraseña del familiar
-        const hashedPasswordFamiliar = await bcrypt.hash(familiar.contraseña, 10);
+        // Preparar datos del familiar
+        const familiarData: any = {
+          rol: 'SOCIO',
+          nombre: familiar.nombre,
+          dni: familiar.dni,
+          fechaNacimiento: new Date(familiar.fechaNacimiento),
+          email: esMenor ? socio.email : familiar.email, // Si es menor, usar email del cabeza de familia
+          telefono: esMenor ? socio.telefono : familiar.telefono, // Si es menor, usar teléfono del cabeza de familia
+          tipoSocio: 'FAMILIAR',
+          planFamiliarId: nuevoSocio.planFamiliarId, // Mismo ID del plan familiar
+          familiarId: nuevoSocio.id, // Referencia al socio principal
+          esMenorDe12: esMenor,
+          fechaAlta: new Date()
+        };
 
-        console.log(`   ${familiarCount}. Creando familiar: ${familiar.nombre} con planFamiliarId: ${nuevoSocio.planFamiliarId}`);
+        // Solo agregar contraseña si NO es menor
+        if (!esMenor && familiar.contraseña) {
+          familiarData.contraseña = await bcrypt.hash(familiar.contraseña, 10);
+        } else {
+          familiarData.contraseña = null; // Los menores no tienen contraseña
+        }
+
+        console.log(`   ${familiarCount}. Creando familiar: ${familiar.nombre} con planFamiliarId: ${nuevoSocio.planFamiliarId} (esMenor: ${esMenor})`);
 
         // Crear el familiar
         const nuevoFamiliar = await prisma.usuario.create({
-          data: {
-            rol: 'SOCIO',
-            nombre: familiar.nombre,
-            dni: familiar.dni,
-            fechaNacimiento: new Date(familiar.fechaNacimiento),
-            email: familiar.email,
-            telefono: familiar.telefono,
-            contraseña: hashedPasswordFamiliar,
-            tipoSocio: 'FAMILIAR',
-            planFamiliarId: nuevoSocio.planFamiliarId, // Mismo ID del plan familiar
-            familiarId: nuevoSocio.id, // Referencia al socio principal
-            fechaAlta: new Date()
-          }
+          data: familiarData
         });
 
-        console.log(`   ✅ Familiar ${familiarCount} creado: ${nuevoFamiliar.nombre} (ID: ${nuevoFamiliar.id}, planFamiliarId: ${nuevoFamiliar.planFamiliarId})`);
+        console.log(`   ✅ Familiar ${familiarCount} creado: ${nuevoFamiliar.nombre} (ID: ${nuevoFamiliar.id}, planFamiliarId: ${nuevoFamiliar.planFamiliarId}, esMenorDe12: ${nuevoFamiliar.esMenorDe12})`);
       }
       
       console.log(`✅ Plan familiar completo: ${familiares.length + 1} integrantes con ID ${nuevoSocio.planFamiliarId}`);
@@ -288,7 +332,8 @@ export async function PATCH(request: NextRequest) {
         select: {
           id: true,
           nombre: true,
-          dni: true
+          dni: true,
+          esMenorDe12: true
         }
       });
       
@@ -298,24 +343,51 @@ export async function PATCH(request: NextRequest) {
       // La regla dice que un plan familiar debe tener al menos 3 integrantes
       // Si quedan 2 o menos, ya no es válido como plan familiar
       if (integrantesPlanFamiliar.length < 3 && integrantesPlanFamiliar.length > 0) {
-        console.log('Quedan menos de 3 integrantes. Convirtiendo todos a INDIVIDUAL...');
+        console.log('Quedan menos de 3 integrantes. Convirtiendo adultos a INDIVIDUAL y eliminando menores...');
         
         for (const integrante of integrantesPlanFamiliar) {
-          console.log(`Convirtiendo a ${integrante.nombre} (ID: ${integrante.id}) a INDIVIDUAL`);
-          await prisma.usuario.update({
-            where: { id: integrante.id },
-            data: {
-              tipoSocio: 'INDIVIDUAL',
-              planFamiliarId: null,
-              familiarId: null
-            }
-          });
-          sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni})`);
-          console.log(`✓ ${integrante.nombre} convertido exitosamente`);
+          // Si es menor de 12 años, eliminarlo (no puede tener cuenta individual)
+          if (integrante.esMenorDe12) {
+            console.log(`⚠️ Eliminando menor: ${integrante.nombre} (ID: ${integrante.id}) - Los menores no pueden tener cuenta individual`);
+            
+            // Registrar la baja del menor
+            await prisma.usuarioBaja.create({
+              data: {
+                usuarioEliminadoId: integrante.id,
+                usuarioEliminadoNombre: integrante.nombre,
+                usuarioEliminadoDni: integrante.dni,
+                usuarioEliminadoEmail: socioExistente.email, // Usaba el email del cabeza de familia
+                rolUsuarioEliminado: 'SOCIO',
+                realizadoPorId: null,
+                realizadoPorNombre: '',
+                realizadoPorDni: '',
+                motivo: `Eliminado automáticamente por conversión de plan familiar a individual (menor de 12 años sin cuenta)`
+              }
+            });
+            
+            // Eliminar al menor
+            await prisma.usuario.delete({
+              where: { id: integrante.id }
+            });
+            
+            sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - ELIMINADO (menor de 12 años)`);
+          } else {
+            // Si es mayor de 12 años, convertir a INDIVIDUAL
+            console.log(`Convirtiendo a ${integrante.nombre} (ID: ${integrante.id}) a INDIVIDUAL`);
+            await prisma.usuario.update({
+              where: { id: integrante.id },
+              data: {
+                tipoSocio: 'INDIVIDUAL',
+                planFamiliarId: null,
+                familiarId: null
+              }
+            });
+            sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - Convertido a INDIVIDUAL`);
+          }
         }
 
-        mensaje = `Socio actualizado exitosamente. Como el plan familiar quedó con menos de 3 integrantes, se convirtieron ${sociosConvertidos.length} socio(s) adicional(es) a plan INDIVIDUAL: ${sociosConvertidos.join(', ')}`;
-        console.log('Todos los integrantes convertidos');
+        mensaje = `Socio actualizado exitosamente. Como el plan familiar quedó con menos de 3 integrantes, se procesaron ${sociosConvertidos.length} socio(s) adicional(es)`;
+        console.log('Todos los integrantes procesados');
       } else if (integrantesPlanFamiliar.length === 0) {
         console.log('No quedan más integrantes en el plan familiar');
       }
@@ -405,7 +477,79 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Registrar la baja en UsuarioBaja solo con los campos obligatorios del usuario eliminado
+    let sociosEliminados = 1; // Contador de socios eliminados
+    const nombresEliminados: string[] = [socio.nombre];
+
+    // Si es cabeza de grupo familiar (tiene planFamiliarId pero NO tiene familiarId)
+    // Eliminar también a todos los miembros del grupo
+    if (socio.tipoSocio === 'FAMILIAR' && socio.planFamiliarId && !socio.familiarId) {
+      console.log(`🔄 Eliminando cabeza de grupo familiar: ${socio.nombre} (planFamiliarId: ${socio.planFamiliarId})`);
+      
+      // Buscar todos los miembros del grupo familiar
+      const miembrosGrupo = await prisma.usuario.findMany({
+        where: {
+          planFamiliarId: socio.planFamiliarId,
+          rol: 'SOCIO',
+          id: { not: socio.id } // Excluir el socio principal que ya tenemos
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          email: true,
+          rol: true
+        }
+      });
+
+      console.log(`📋 Encontrados ${miembrosGrupo.length} miembros adicionales en el grupo familiar`);
+
+      // Eliminar cada miembro del grupo
+      for (const miembro of miembrosGrupo) {
+        console.log(`   🗑️ Eliminando miembro: ${miembro.nombre} (DNI: ${miembro.dni})`);
+        
+        // Registrar la baja del miembro
+        await prisma.usuarioBaja.create({
+          data: {
+            usuarioEliminadoId: miembro.id,
+            usuarioEliminadoNombre: miembro.nombre,
+            usuarioEliminadoDni: miembro.dni,
+            usuarioEliminadoEmail: miembro.email,
+            rolUsuarioEliminado: miembro.rol,
+            realizadoPorId: null,
+            realizadoPorNombre: '',
+            realizadoPorDni: '',
+            motivo: `Eliminado por baja de cabeza de grupo familiar (DNI: ${socio.dni})`
+          }
+        });
+
+        // Eliminar el miembro
+        await prisma.usuario.delete({
+          where: { id: miembro.id }
+        });
+
+        nombresEliminados.push(miembro.nombre);
+        sociosEliminados++;
+
+        // Enviar correo de notificación al miembro
+        try {
+          const { enviarCorreoBajaUsuario } = await import('@/lib/email');
+          await enviarCorreoBajaUsuario({
+            email: miembro.email,
+            nombre: miembro.nombre,
+            dni: miembro.dni,
+            rol: miembro.rol,
+            fechaBaja: new Date()
+          });
+          console.log(`   ✅ Correo enviado a ${miembro.email}`);
+        } catch (emailError) {
+          console.error(`   ⚠️ Error al enviar correo a ${miembro.email}:`, emailError);
+        }
+      }
+
+      console.log(`✅ Grupo familiar completo eliminado: ${sociosEliminados} socio(s)`);
+    }
+
+    // Registrar la baja del socio principal
     const registroBaja = await prisma.usuarioBaja.create({
       data: {
         usuarioEliminadoId: socio.id,
@@ -413,22 +557,22 @@ export async function DELETE(request: NextRequest) {
         usuarioEliminadoDni: socio.dni,
         usuarioEliminadoEmail: socio.email,
         rolUsuarioEliminado: socio.rol,
-        // El resto de los campos quedan nulos o vacíos
         realizadoPorId: null,
         realizadoPorNombre: '',
         realizadoPorDni: '',
-        motivo: ''
+        motivo: socio.tipoSocio === 'FAMILIAR' && socio.planFamiliarId && !socio.familiarId 
+          ? `Cabeza de grupo familiar eliminada junto con ${sociosEliminados - 1} miembro(s)`
+          : ''
       }
     });
 
-    // Eliminar el socio
+    // Eliminar el socio principal
     await prisma.usuario.delete({
       where: { id: socio.id }
     });
 
-    // Enviar correo de notificación al socio dado de baja
+    // Enviar correo de notificación al socio principal
     try {
-      // Importar la función de email dinámicamente para evitar problemas de dependencias
       const { enviarCorreoBajaUsuario } = await import('@/lib/email');
       await enviarCorreoBajaUsuario({
         email: socio.email,
@@ -437,14 +581,21 @@ export async function DELETE(request: NextRequest) {
         rol: socio.rol,
         fechaBaja: registroBaja.fechaBaja
       });
-      console.log(`Correo de notificación enviado a ${socio.email}`);
+      console.log(`✅ Correo de notificación enviado a ${socio.email}`);
     } catch (emailError) {
-      console.error('Error al enviar correo de notificación:', emailError);
-      // La baja ya se realizó, solo falló el correo
+      console.error('⚠️ Error al enviar correo de notificación:', emailError);
     }
 
+    const mensaje = sociosEliminados > 1
+      ? `Grupo familiar eliminado exitosamente: ${nombresEliminados.join(', ')} (${sociosEliminados} socio(s) en total)`
+      : 'Socio eliminado exitosamente';
+
     return NextResponse.json(
-      { message: 'Socio eliminado exitosamente' },
+      { 
+        message: mensaje,
+        sociosEliminados,
+        nombres: nombresEliminados
+      },
       { status: 200 }
     );
   } catch (error) {

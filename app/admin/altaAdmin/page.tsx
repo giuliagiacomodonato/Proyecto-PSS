@@ -6,7 +6,6 @@ import Sidebar from '@/app/components/Sidebar'
 import { Button } from '@/app/components/button'
 import { Input } from '@/app/components/input'
 import { Label } from '@/app/components/label'
-import Toast from '@/app/components/Toast'
 
 function todayDateString() {
   const d = new Date()
@@ -50,12 +49,6 @@ export default function AltaAdminPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info' | 'warning'>('success')
-
-  const closeToast = () => setToastOpen(false)
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -97,6 +90,88 @@ export default function AltaAdminPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    // Validar campo en tiempo real
+    validateField(field, value)
+  }
+
+  const validateField = (field: string, value: string) => {
+    const newErrors = { ...errors }
+    
+    switch (field) {
+      case 'nombre':
+        if (!value.trim()) {
+          newErrors.nombre = 'El nombre es requerido'
+        } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) {
+          newErrors.nombre = 'El nombre solo debe contener letras'
+        } else {
+          delete newErrors.nombre
+        }
+        break
+      case 'dni':
+        if (!value.trim()) {
+          newErrors.dni = 'El DNI es requerido'
+        } else if (!/^\d{7,8}$/.test(value)) {
+          newErrors.dni = 'El DNI debe tener 7 u 8 dígitos'
+        } else {
+          delete newErrors.dni
+        }
+        break
+      case 'fechaNacimiento':
+        if (!value) {
+          newErrors.fechaNacimiento = 'La fecha de nacimiento es requerida'
+        } else {
+          const yearError = validateYearRange(value, 'Fecha de nacimiento')
+          if (yearError) {
+            newErrors.fechaNacimiento = yearError
+          } else {
+            delete newErrors.fechaNacimiento
+          }
+        }
+        break
+      case 'email':
+        if (!value.trim()) {
+          newErrors.email = 'El correo electrónico es requerido'
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          newErrors.email = 'El correo electrónico no es válido'
+        } else {
+          delete newErrors.email
+        }
+        break
+      case 'telefono':
+        if (!value.trim()) {
+          newErrors.telefono = 'El teléfono es requerido'
+        } else if (!/^\d+$/.test(value)) {
+          newErrors.telefono = 'El teléfono solo debe contener números'
+        } else {
+          delete newErrors.telefono
+        }
+        break
+      case 'contraseña':
+        if (value.length < 8) {
+          newErrors.contraseña = 'La contraseña debe tener al menos 8 caracteres'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#\$%*?&._\-!]).+$/.test(value)) {
+          newErrors.contraseña = 'La contraseña debe contener mayúscula, minúscula, número y carácter especial'
+        } else {
+          delete newErrors.contraseña
+        }
+        break
+    }
+    
+    setErrors(newErrors)
+  }
+
+  const isFormValid = () => {
+    return Object.keys(errors).length === 0 &&
+           formData.nombre.trim() !== '' &&
+           formData.dni.trim() !== '' &&
+           formData.fechaNacimiento !== '' &&
+           formData.email.trim() !== '' &&
+           formData.telefono.trim() !== '' &&
+           formData.contraseña !== ''
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
@@ -115,19 +190,15 @@ export default function AltaAdminPage() {
         // Si el backend devolvió errores por campo, mapéalos al state para mostrarlos inline
         if (data?.errors && typeof data.errors === 'object') {
           setErrors(data.errors)
-          setToastMessage('Corrige los campos señalados')
-          setToastType('error')
-          setToastOpen(true)
           return
         }
 
-        throw new Error(data.error || data.message || 'Error al registrar administrador')
+        // Mostrar error general
+        setErrors({ general: data.error || data.message || 'Error al registrar administrador' })
+        return
       }
 
-      setToastMessage('Administrador registrado exitosamente')
-      setToastType('success')
-      setToastOpen(true)
-
+      // Éxito - limpiar formulario
       setFormData({
         nombre: '',
         dni: '',
@@ -137,11 +208,14 @@ export default function AltaAdminPage() {
         contraseña: '',
         fechaRegistro: todayDateString(),
       })
-      setErrors({})
+      setErrors({ general: '✓ Administrador registrado exitosamente' })
+      
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setErrors({})
+      }, 3000)
     } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Error al registrar administrador')
-      setToastType('error')
-      setToastOpen(true)
+      setErrors({ general: err instanceof Error ? err.message : 'Error al registrar administrador' })
     } finally {
       setLoading(false)
     }
@@ -170,13 +244,19 @@ export default function AltaAdminPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-8">Registrar Nuevo Administrador</h1>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {errors.general && (
+                <div className={`p-3 rounded-md ${errors.general.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {errors.general}
+                </div>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre Completo <span className="text-gray-900">*</span></Label>
                 <Input
                   id="nombre"
                   placeholder="Ingrese el nombre completo"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
                   className={errors.nombre ? 'border-red-500' : ''}
                 />
                 {errors.nombre && <p className="text-sm text-red-500">{errors.nombre}</p>}
@@ -189,7 +269,7 @@ export default function AltaAdminPage() {
                     id="dni"
                     placeholder="12345678"
                     value={formData.dni}
-                    onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                    onChange={(e) => handleInputChange('dni', e.target.value)}
                     className={errors.dni ? 'border-red-500' : ''}
                   />
                   {errors.dni && <p className="text-sm text-red-500">{errors.dni}</p>}
@@ -201,7 +281,7 @@ export default function AltaAdminPage() {
                     id="fechaNacimiento"
                     type="date"
                     value={formData.fechaNacimiento}
-                    onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
+                    onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
                     className={errors.fechaNacimiento ? 'border-red-500' : ''}
                   />
                   {errors.fechaNacimiento && <p className="text-sm text-red-500">{errors.fechaNacimiento}</p>}
@@ -214,7 +294,7 @@ export default function AltaAdminPage() {
                   id="email"
                   placeholder="admin@ejemplo.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
                   className={errors.email ? 'border-red-500' : ''}
                 />
                 {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
@@ -227,7 +307,7 @@ export default function AltaAdminPage() {
                     id="telefono"
                     placeholder="123456789"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    onChange={(e) => handleInputChange('telefono', e.target.value)}
                     className={errors.telefono ? 'border-red-500' : ''}
                   />
                   {errors.telefono && <p className="text-sm text-red-500">{errors.telefono}</p>}
@@ -254,7 +334,7 @@ export default function AltaAdminPage() {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Ingrese la contraseña"
                     value={formData.contraseña}
-                    onChange={(e) => setFormData({ ...formData, contraseña: e.target.value })}
+                    onChange={(e) => handleInputChange('contraseña', e.target.value)}
                     className={errors.contraseña ? 'border-red-500 pr-10' : 'pr-10'}
                   />
                   <button
@@ -288,7 +368,7 @@ export default function AltaAdminPage() {
 
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !isFormValid()}
                   className="flex-1 px-8 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors justify-center"
                 >
                   {loading ? (
@@ -313,8 +393,6 @@ export default function AltaAdminPage() {
           </div>
         </div>
       </main>
-
-      <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={closeToast} />
     </div>
   )
 }

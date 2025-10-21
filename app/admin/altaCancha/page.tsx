@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
-import Toast, { ToastType } from '@/app/components/Toast'
 import { Plus, X } from 'lucide-react'
 
 interface Horario {
@@ -24,12 +23,7 @@ interface FormErrors {
   ubicacion?: string
   horarios?: string
   precio?: string
-}
-
-interface ToastState {
-  isOpen: boolean
-  message: string
-  type: ToastType
+  general?: string
 }
 
 export default function AltaCanchaPage() {
@@ -45,19 +39,6 @@ export default function AltaCanchaPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [tiposCancha, setTiposCancha] = useState<string[]>([])
   const [loadingTipos, setLoadingTipos] = useState(true)
-  const [toast, setToast] = useState<ToastState>({
-    isOpen: false,
-    message: '',
-    type: 'success'
-  })
-
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ isOpen: true, message, type })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isOpen: false }))
-  }
 
   // Cargar tipos de cancha desde la API
   useEffect(() => {
@@ -69,7 +50,7 @@ export default function AltaCanchaPage() {
         setTiposCancha(data.tipos)
       } catch (error) {
         console.error('Error:', error)
-        showToast('Error al cargar los tipos de cancha', 'error')
+        setErrors({ general: 'Error al cargar los tipos de cancha' })
       } finally {
         setLoadingTipos(false)
       }
@@ -196,13 +177,52 @@ export default function AltaCanchaPage() {
       ...prev,
       [name]: value
     }))
-    // Limpiar error del campo cuando el usuario empieza a escribir
-    if (errors[name as keyof FormErrors]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }))
+    
+    // Validar campo en tiempo real
+    validateFieldInline(name, value)
+  }
+
+  const validateFieldInline = (name: string, value: string) => {
+    const newErrors = { ...errors }
+    
+    switch (name) {
+      case 'nombre':
+        if (!value.trim()) {
+          newErrors.nombre = 'El nombre de cancha es requerido'
+        } else {
+          delete newErrors.nombre
+        }
+        break
+      case 'tipo':
+        if (!value) {
+          newErrors.tipo = 'Debe seleccionar un tipo de cancha'
+        } else {
+          delete newErrors.tipo
+        }
+        break
+      case 'ubicacion':
+        if (!value.trim()) {
+          newErrors.ubicacion = 'La ubicación es requerida'
+        } else if (value.length > 100) {
+          newErrors.ubicacion = 'La ubicación no puede exceder 100 caracteres'
+        } else {
+          delete newErrors.ubicacion
+        }
+        break
+      case 'precio':
+        if (!value.trim()) {
+          newErrors.precio = 'El precio es requerido'
+        } else if (!/^\d+$/.test(value)) {
+          newErrors.precio = 'El precio debe contener solo dígitos'
+        } else if (parseInt(value) <= 0) {
+          newErrors.precio = 'El precio debe ser mayor a 0'
+        } else {
+          delete newErrors.precio
+        }
+        break
     }
+    
+    setErrors(newErrors)
   }
 
   const validateForm = (): boolean => {
@@ -283,6 +303,44 @@ export default function AltaCanchaPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const isFormValid = () => {
+    // Verificar que todos los campos requeridos estén llenos
+    const camposLlenos = formData.nombre.trim() !== '' &&
+                         formData.tipo !== '' &&
+                         formData.ubicacion.trim() !== '' &&
+                         formData.precio.trim() !== ''
+    
+    // Verificar que el precio sea válido
+    const precioValido = /^\d+$/.test(formData.precio) && parseInt(formData.precio) > 0
+    
+    // Validar que todos los horarios estén completos y sean válidos
+    const horariosValidos = horarios.length > 0 && horarios.every(h => {
+      if (!h.inicio || !h.fin) return false
+      const horaInicio = parseInt(h.inicio.split(':')[0])
+      const horaFin = parseInt(h.fin.split(':')[0])
+      return horaInicio < horaFin
+    })
+    
+    // Verificar que no haya errores (excepto 'general')
+    const noHayErrores = !errors.nombre && !errors.tipo && !errors.ubicacion && !errors.precio && !errors.horarios
+    
+    const esValido = camposLlenos && precioValido && horariosValidos && noHayErrores
+    
+    // Debug
+    console.log('Validación formulario:', {
+      camposLlenos,
+      precioValido,
+      horariosValidos,
+      noHayErrores,
+      esValido,
+      formData,
+      horarios,
+      errors
+    })
+    
+    return esValido
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -312,10 +370,7 @@ export default function AltaCanchaPage() {
         throw new Error(errorData.message || 'Error al registrar la cancha')
       }
 
-      // Mostrar toast de éxito
-      showToast('¡Registro Exitoso!', 'success')
-      
-      // Limpiar formulario
+      // Limpiar formulario y mostrar éxito
       setFormData({
         nombre: '',
         tipo: '',
@@ -323,10 +378,19 @@ export default function AltaCanchaPage() {
         precio: ''
       })
       setHorarios([{ inicio: '', fin: '' }])
+      setErrors({ general: '✓ Cancha registrada exitosamente' })
+      
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setErrors(prev => {
+          const { general, ...rest } = prev
+          return rest
+        })
+      }, 3000)
       
     } catch (error) {
       console.error('Error:', error)
-      showToast(error instanceof Error ? error.message : 'Error al registrar la cancha', 'error')
+      setErrors({ general: error instanceof Error ? error.message : 'Error al registrar la cancha' })
     } finally {
       setLoading(false)
     }
@@ -357,6 +421,12 @@ export default function AltaCanchaPage() {
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+          {errors.general && (
+            <div className={`p-3 rounded-md ${errors.general.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {errors.general}
+            </div>
+          )}
+          
           {/* Primera fila: Nombre */}
           <div className="grid grid-cols-1 gap-6">
             <div>
@@ -533,7 +603,7 @@ export default function AltaCanchaPage() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isFormValid()}
               className="px-8 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
             >
               {loading ? (
@@ -554,16 +624,9 @@ export default function AltaCanchaPage() {
               )}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
 
-      {/* Toast de notificaciones */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-      />
-    </div>
   )
 }

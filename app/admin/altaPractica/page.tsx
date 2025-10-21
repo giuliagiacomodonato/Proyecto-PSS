@@ -2,9 +2,6 @@
 
 import { useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
-
-import Toast, { ToastType } from '@/app/components/Toast'
-
 import { Plus, User } from 'lucide-react'
 
 type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO'
@@ -30,6 +27,7 @@ interface FormErrors {
   cupo?: string
   precio?: string
   horarios?: string
+  general?: string
 }
 
 const diasSemana: { value: DiaSemana; label: string }[] = [
@@ -65,25 +63,6 @@ export default function AltaPracticaPage() {
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
-  // Toast state
-  const [toast, setToast] = useState<{
-    isOpen: boolean
-    message: string
-    type: ToastType
-  }>({
-    isOpen: false,
-    message: '',
-    type: 'success'
-  })
-
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ isOpen: true, message, type })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isOpen: false }))
-  }
 
   // Validaciones en tiempo real
   const validateField = (name: string, value: string): string => {
@@ -264,10 +243,13 @@ export default function AltaPracticaPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al registrar la práctica')
+        setErrors({ general: data.error || 'Error al registrar la práctica' })
+        return
       }
 
-      showToast('¡La práctica se registró correctamente!', 'success')
+      // Mostrar mensaje de éxito
+      setErrors({ general: '✓ Práctica registrada exitosamente' })
+      
       // Limpiar formulario
       setFormData({
         nombre: '',
@@ -281,15 +263,48 @@ export default function AltaPracticaPage() {
           horaFin: ''
         }]
       })
+      
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setErrors({})
+      }, 3000)
 
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Error al registrar la práctica',
-        'error'
-      )
+      setErrors({ 
+        general: error instanceof Error ? error.message : 'Error al registrar la práctica'
+      })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const isFormValid = () => {
+    // Verificar que todos los campos requeridos estén llenos
+    const camposLlenos = formData.nombre.trim() !== '' &&
+                         formData.cupo.trim() !== '' &&
+                         formData.precio.trim() !== ''
+    
+    // Verificar que cupo sea válido
+    const cupoValido = /^\d+$/.test(formData.cupo) && parseInt(formData.cupo) > 0
+    
+    // Verificar que precio sea válido
+    const precioValido = /^\d+$/.test(formData.precio) && parseInt(formData.precio) > 0
+    
+    // Validar que al menos un horario esté completo
+    const horariosValidos = formData.horarios.some(h => h.dia && h.horaInicio && h.horaFin) &&
+                            formData.horarios.every(h => {
+                              if (!h.dia || !h.horaInicio || !h.horaFin) return true // Ignorar horarios incompletos
+                              const [horaInicioH, horaInicioM] = h.horaInicio.split(':').map(Number)
+                              const [horaFinH, horaFinM] = h.horaFin.split(':').map(Number)
+                              const inicioMinutos = horaInicioH * 60 + horaInicioM
+                              const finMinutos = horaFinH * 60 + horaFinM
+                              return inicioMinutos < finMinutos
+                            })
+    
+    // Verificar que no haya errores
+    const noHayErrores = !errors.nombre && !errors.descripcion && !errors.cupo && !errors.precio && !errors.horarios
+    
+    return camposLlenos && cupoValido && precioValido && horariosValidos && noHayErrores
   }
 
   const handleCancel = () => {
@@ -306,7 +321,6 @@ export default function AltaPracticaPage() {
       }]
     })
     setErrors({})
-    closeToast()
   }
 
   return (
@@ -335,6 +349,12 @@ export default function AltaPracticaPage() {
         {/* Formulario */}
         <div className="bg-white rounded-lg shadow-md p-8 max-w-4xl">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errors.general && (
+              <div className={`p-3 rounded-md ${errors.general.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {errors.general}
+              </div>
+            )}
+            
             {/* Fila 1: Nombre y Descripción */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -507,7 +527,7 @@ export default function AltaPracticaPage() {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isFormValid()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Registrando...' : 'Registrar'}
@@ -516,15 +536,6 @@ export default function AltaPracticaPage() {
           </form>
         </div>
       </main>
-
-      {/* Toast notifications */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-        duration={5000}
-      />
     </div>
   )
 }

@@ -44,6 +44,29 @@ enum TipoCancha {
   BASQUET
 }
 
+// Enum para estado de pago
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+  VENCIDO
+  CANCELADO
+}
+
+// Enum para tipo de pago
+enum TipoPago {
+  RESERVA_CANCHA
+  CUOTA_MENSUAL
+  PRACTICA_DEPORTIVA
+}
+
+// Enum para método de pago
+enum MetodoPago {
+  EFECTIVO
+  TARJETA_DEBITO
+  TARJETA_CREDITO
+  TRANSFERENCIA
+}
+
 // Tabla única de usuarios con todos los roles
 model Usuario {
   id               Int         @id @default(autoincrement())
@@ -51,10 +74,11 @@ model Usuario {
   nombre           String      // Solo caracteres
   dni              String      @unique // 7-8 dígitos
   fechaNacimiento  DateTime
-  email            String      @unique // Campo con '@' necesario
+  email            String      // Campo con '@' necesario (no único para permitir menores)
   telefono         String      // Solo números
-  contraseña       String      // Mínimo 8 caracteres con validaciones
+  contraseña       String?     // Mínimo 8 caracteres con validaciones (opcional para menores de 12 años)
   fechaAlta        DateTime    @default(now())
+  esMenorDe12      Boolean     @default(false) // Indica si es menor de 12 años (sin cuenta real)
   
   // Campos específicos para SOCIO
   tipoSocio        TipoSocio?  // Solo para socios
@@ -71,6 +95,10 @@ model Usuario {
   // Relaciones
   turnos           Turno[]     // Turnos reservados (solo socios)
   bajasRealizadas  UsuarioBaja[] // Bajas que realizó este usuario
+  inscripciones    Inscripcion[] // Inscripciones a prácticas deportivas (solo socios)
+  asistencias      Asistencia[]  // Asistencias a prácticas deportivas (solo socios)
+  pagos            Pago[]        // Pagos realizados
+  cuotas           Cuota[]       // Cuotas mensuales (solo cabeza de familia o socios individuales)
   
   @@map("usuarios")
 }
@@ -83,9 +111,11 @@ model PracticaDeportiva {
   precio      Int       // Solo dígitos
   cupo        Int
   // Relaciones
-  horarios    Horario[]
-  entrenadores Usuario[]
-  canchas     Cancha[]
+  horarios      Horario[]
+  entrenadores  Usuario[]
+  canchas       Cancha[]
+  inscripciones Inscripcion[]
+  asistencias   Asistencia[]
   
   @@map("practicas_deportivas")
 }
@@ -140,6 +170,7 @@ model Turno {
   reservado     Boolean  @default(false)
   usuarioSocioId Int?    // Puede ser NULL si no está reservado
   usuarioSocio  Usuario? @relation(fields: [usuarioSocioId], references: [id])
+  pagos         Pago[]   // Pagos asociados a este turno
   
   @@map("turnos")
 }
@@ -167,4 +198,84 @@ model UsuarioBaja {
   motivo                  String?     // Motivo de la baja (opcional)
   
   @@map("usuarios_bajas")
+}
+
+// Tabla de inscripciones a prácticas deportivas
+model Inscripcion {
+  id                  Int               @id @default(autoincrement())
+  usuarioSocioId      Int
+  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  practicaDeportivaId Int
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+  fechaInscripcion    DateTime          @default(now())
+  activa              Boolean           @default(true) // Si la inscripción sigue vigente
+  
+  // Relaciones
+  asistencias         Asistencia[]
+  pagos               Pago[]
+  
+  @@unique([usuarioSocioId, practicaDeportivaId]) // Un socio no puede inscribirse dos veces a la misma práctica
+  @@map("inscripciones")
+}
+
+// Tabla de asistencias a prácticas deportivas
+model Asistencia {
+  id                  Int               @id @default(autoincrement())
+  inscripcionId       Int
+  inscripcion         Inscripcion       @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  usuarioSocioId      Int
+  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  practicaDeportivaId Int
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+  fecha               DateTime          @default(now())
+  presente            Boolean           @default(false) // Si asistió o no
+  
+  @@map("asistencias")
+}
+
+// Tabla de cuotas mensuales
+// Solo se registra para cabeza de familia (incluye valor total del grupo) o socios individuales
+model Cuota {
+  id              Int      @id @default(autoincrement())
+  usuarioSocioId  Int      // Solo cabeza de familia o socio individual
+  usuarioSocio    Usuario  @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  mes             Int      // Mes (1-12)
+  anio            Int      // Año (2024, 2025, etc.)
+  monto           Int      // Precio total de la cuota (si es familiar, incluye todos los miembros)
+  fechaVencimiento DateTime // Fecha límite de pago
+  
+  // Relaciones
+  pagos           Pago[]
+  
+  @@unique([usuarioSocioId, mes, anio]) // Una cuota por socio por mes/año
+  @@map("cuotas")
+}
+
+// Tabla unificada de pagos (para reservas, cuotas y prácticas deportivas)
+model Pago {
+  id              Int         @id @default(autoincrement())
+  usuarioSocioId  Int
+  usuarioSocio    Usuario     @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  
+  // Tipo de pago
+  tipoPago        TipoPago
+  
+  // Relaciones opcionales según el tipo de pago
+  turnoId         Int?        // Si es pago de reserva de cancha
+  turno           Turno?      @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+  
+  cuotaId         Int?        // Si es pago de cuota mensual
+  cuota           Cuota?      @relation(fields: [cuotaId], references: [id], onDelete: Cascade)
+  
+  inscripcionId   Int?        // Si es pago de práctica deportiva
+  inscripcion     Inscripcion? @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  
+  // Datos del pago
+  monto           Int
+  fechaPago       DateTime    @default(now())
+  metodoPago      MetodoPago
+  estado          EstadoPago  @default(PENDIENTE)
+  comprobante     String?     // Número de comprobante o referencia
+  
+  @@map("pagos")
 }
