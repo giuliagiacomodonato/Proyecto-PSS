@@ -255,7 +255,8 @@ export async function GET(request: NextRequest) {
         fechaNacimiento: true,
         tipoSocio: true,
         planFamiliarId: true,
-        fechaAlta: true
+        fechaAlta: true,
+        esMenorDe12: true
       }
     });
 
