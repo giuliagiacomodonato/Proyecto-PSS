@@ -55,7 +55,7 @@ export default function Sidebar() {
       label: 'Entrenadores',
       subItems: [
         { label: 'Registrar Entrenador', href: '/admin/altaEntrenador' },
-        { label: 'Modificar Entrenador', href: '/admin/entrenadores/modificar' },
+        { label: 'Modificar Entrenador', href: '/admin/modifEntrenador' },
         { label: 'Eliminar Entrenador', href: '/admin/entrenadores/eliminar' }
       ]
     },

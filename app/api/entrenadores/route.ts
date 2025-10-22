@@ -2,6 +2,32 @@ import { type NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const dni = searchParams.get("dni")
+
+    if (!dni) {
+      return NextResponse.json({ error: "DNI es requerido" }, { status: 400 })
+    }
+
+    const entrenador = await prisma.usuario.findUnique({
+      where: { dni },
+      include: { practicaDeportiva: true },
+    })
+
+    if (!entrenador) {
+      return NextResponse.json({ error: "Entrenador no encontrado" }, { status: 404 })
+    }
+
+    // No devolver la contraseña
+    const { contraseña: _, ...entrenadorSinPassword } = entrenador
+    return NextResponse.json(entrenadorSinPassword)
+  } catch (error) {
+    console.error("[v0] Error al buscar entrenador:", error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
