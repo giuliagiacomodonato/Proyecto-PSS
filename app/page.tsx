@@ -231,12 +231,17 @@ export default function Home() {
         return;
       }
 
-      // La respuesta del backend nos da el rol y el token.
-  const { rol, token } = data as { rol: Role; token?: string }
+      // La respuesta del backend nos da el rol, el token y el usuario.
+  const { rol, token, usuario } = data as { rol: Role; token?: string; usuario?: any }
       
-      // Guardar token para la sesión futura (simulación, para prod usar cookies seguras)
-      if (typeof window !== 'undefined' && typeof token === 'string') {
-        localStorage.setItem('auth_token', token as string)
+      // Guardar token y usuario para la sesión futura (simulación, para prod usar cookies seguras)
+      if (typeof window !== 'undefined') {
+        if (typeof token === 'string') {
+          localStorage.setItem('token', token as string)
+        }
+        if (usuario) {
+          localStorage.setItem('usuario', JSON.stringify(usuario))
+        }
       }
       
       // Redirigir según el rol (Criterio F2-1: redirigir a su respectivo dashboard)
