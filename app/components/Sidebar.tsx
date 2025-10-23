@@ -82,7 +82,7 @@ export default function Sidebar() {
       label: 'Prácticas Deportivas',
       subItems: [
         { label: 'Registrar Práctica', href: '/admin/altaPractica' },
-        { label: 'Modificar Práctica', href: '/admin/practicas/modificar' },
+        { label: 'Modificar Práctica', href: '/admin/modifPractica' },
         { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' }
       ]
     },
