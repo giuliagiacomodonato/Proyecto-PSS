@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { useAdminProtection } from "@/app/hooks/useAdminProtection"
 // Update the import path to the correct location of Sidebar
 import Sidebar from "../components/Sidebar"
 import { Users, CreditCard, Calendar, CheckSquare, ChevronDown, ChevronUp, User } from "lucide-react"
@@ -110,8 +111,28 @@ function MetricPanel({
 }
 
 export default function AdminDashboardPage() {
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [from, setFrom] = useState<string>("")
   const [to, setTo] = useState<string>("")
+
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">

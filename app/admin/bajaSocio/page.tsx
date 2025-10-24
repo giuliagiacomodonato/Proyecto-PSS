@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
 import Toast, { ToastType } from '@/app/components/Toast'
 import { User } from 'lucide-react'
@@ -13,19 +14,15 @@ interface ToastState {
 }
 
 export default function BajaSocioPage() {
-  // Hook para navegación entre páginas
   const router = useRouter()
-  // Estado para el DNI ingresado
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [dni, setDni] = useState('')
-  // Estado para mostrar la fecha de baja (formateada)
   const [fechaBaja, setFechaBaja] = useState('')
-  // Estado para mostrar spinner de carga
   const [loading, setLoading] = useState(false)
-  // Estado para mostrar el modal de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  // Estado para errores de validación
   const [errors, setErrors] = useState<{ dni?: string }>({})
-  // Estado para mostrar mensajes tipo toast (éxito/error)
   const [toast, setToast] = useState<ToastState>({
     isOpen: false,
     message: '',
@@ -137,6 +134,23 @@ export default function BajaSocioPage() {
   const handleCancel = () => {
     setDni('')
     setErrors({})
+  }
+
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null
   }
 
   // Renderiza la interfaz de baja de socio

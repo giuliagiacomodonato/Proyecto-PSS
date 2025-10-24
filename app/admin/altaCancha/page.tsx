@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
 import { Plus, X } from 'lucide-react'
 
@@ -28,6 +29,9 @@ interface FormErrors {
 
 export default function AltaCanchaPage() {
   const router = useRouter()
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [formData, setFormData] = useState<FormData>({
     nombre: '',
     tipo: '',
@@ -398,6 +402,23 @@ export default function AltaCanchaPage() {
 
   const handleCancel = () => {
     router.back()
+  }
+
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null;
   }
 
   return (

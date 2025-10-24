@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAdminProtection } from '@/app/hooks/useAdminProtection';
 import Toast from '../../components/Toast';
 import AdminLayout from '../../components/AdminLayout';
 
@@ -26,6 +27,9 @@ interface FamiliarData {
 }
 
 export default function AltaSocioPage() {
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection();
+
   const [formData, setFormData] = useState<SocioFormData>({
     nombre: '',
     dni: '',
@@ -36,19 +40,6 @@ export default function AltaSocioPage() {
     contraseña: '',
     tipoSocio: 'INDIVIDUAL'
   });
-
-  // Función para calcular la edad
-  const calcularEdad = (fechaNacimiento: string): number => {
-    if (!fechaNacimiento) return 0;
-    const hoy = new Date();
-    const nacimiento = new Date(fechaNacimiento);
-    let edad = hoy.getFullYear() - nacimiento.getFullYear();
-    const mes = hoy.getMonth() - nacimiento.getMonth();
-    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-      edad--;
-    }
-    return edad;
-  };
 
   const [familiares, setFamiliares] = useState<FamiliarData[]>([]);
   const [showModalFamiliar, setShowModalFamiliar] = useState(false);
@@ -424,6 +415,23 @@ export default function AltaSocioPage() {
       setIsLoading(false);
     }
   };
+
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null;
+  }
 
   return (
     <AdminLayout>
