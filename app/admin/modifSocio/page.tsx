@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useAdminProtection } from "@/app/hooks/useAdminProtection";
+import Sidebar from "@/app/components/Sidebar";
+import { User } from "lucide-react";
 
 import AdminLayout from "../../components/AdminLayout";
 
@@ -153,200 +155,221 @@ export default function ModificarSocio() {
   }
 
   return (
-    <AdminLayout>
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 mt-8">Modificar Socio</h2>
-        <div className="mb-6 flex gap-2">
-          <input
-            type="text"
-            placeholder="Buscar Socio por DNI"
-            value={dniBusqueda}
-            onChange={(e) => setDniBusqueda(e.target.value)}
-            className="border px-3 py-2 rounded w-64"
-          />
-          <button
-            onClick={buscarSocio}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Buscar
-          </button>
-        </div>
-        {mensaje && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-800 whitespace-pre-line">{mensaje}</p>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar />
+
+      <main className="flex-1 p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
+            </div>
           </div>
-        )}
-        {editSocio && (
-          <>
-            {editSocio.esMenorDe12 && (
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-yellow-800">
-                  <strong>⚠️ Menor de 12 años:</strong> Este socio no puede ser modificado. Los menores de 12 años no tienen cuenta en el sistema y sus datos solo pueden ser gestionados por el cabeza de familia.
-                </p>
-              </div>
-            )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!editSocio.esMenorDe12) {
-                  handleGuardar();
-                }
-              }}
-              className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto"
+
+          {/* Breadcrumb */}
+          <div className="text-sm text-gray-500 mb-6">
+            Panel Principal &gt; Socios &gt; Modificar Socio
+          </div>
+
+          <h2 className="text-2xl font-semibold text-gray-800">Modificar Socio</h2>
+        </div>
+
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6 flex gap-2">
+            <input
+              type="text"
+              placeholder="Buscar Socio por DNI"
+              value={dniBusqueda}
+              onChange={(e) => setDniBusqueda(e.target.value)}
+              className="border px-3 py-2 rounded w-64"
+            />
+            <button
+              onClick={buscarSocio}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre Completo
-                  </label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={editSocio.nombre}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
+              Buscar
+            </button>
+          </div>
+          {mensaje && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 whitespace-pre-line">{mensaje}</p>
+            </div>
+          )}
+          {editSocio && (
+            <>
+              {editSocio.esMenorDe12 && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-yellow-800">
+                    <strong>⚠️ Menor de 12 años:</strong> Este socio no puede ser modificado. Los menores de 12 años no tienen cuenta en el sistema y sus datos solo pueden ser gestionados por el cabeza de familia.
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    DNI
-                  </label>
-                  <input
-                    type="text"
-                    name="dni"
-                    value={editSocio.dni}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Nacimiento
-                  </label>
-                  <input
-                    type="text"
-                    name="fechaNacimiento"
-                    value={editSocio.fechaNacimiento}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Correo Electrónico
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={editSocio.email}
-                    onChange={handleChange}
-                    disabled={editSocio.esMenorDe12}
-                    className={`w-full px-3 py-2 border rounded-md ${
-                      editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
-                  {editSocio.esMenorDe12 && (
-                    <span className="text-xs text-gray-500">Email del cabeza de familia</span>
-                  )}
-                  {errores.email && !editSocio.esMenorDe12 && (
-                    <span className="text-red-500 text-sm">{errores.email}</span>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono de Contacto <span className="text-gray-400 text-xs">(opcional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="telefono"
-                    value={editSocio.telefono}
-                    onChange={handleChange}
-                    disabled={editSocio.esMenorDe12}
-                    className={`w-full px-3 py-2 border rounded-md ${
-                      editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
-                  {editSocio.esMenorDe12 && (
-                    <span className="text-xs text-gray-500">Teléfono del cabeza de familia</span>
-                  )}
-                  {errores.telefono && !editSocio.esMenorDe12 && (
-                    <span className="text-red-500 text-sm">{errores.telefono}</span>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dirección <span className="text-gray-400 text-xs">(opcional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="direccion"
-                    value={editSocio.direccion}
-                    onChange={handleChange}
-                    disabled={editSocio.esMenorDe12}
-                    className={`w-full px-3 py-2 border rounded-md ${
-                      editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
-                  {errores.direccion && !editSocio.esMenorDe12 && (
-                    <span className="text-red-500 text-sm">{errores.direccion}</span>
-                  )}
-                </div>
-              </div>
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Socio
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
+              )}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!editSocio.esMenorDe12) {
+                    handleGuardar();
+                  }
+                }}
+                className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre Completo
+                    </label>
                     <input
-                      type="radio"
-                      name="tipo"
-                      value="Individual"
-                      checked={editSocio.tipoSocio === "INDIVIDUAL"}
-                      onChange={() => handleTipoChange("Individual")}
-                      disabled={editSocio.esMenorDe12}
-                      className="mr-2"
+                      type="text"
+                      name="nombre"
+                      value={editSocio.nombre}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                     />
-                    Individual
-                  </label>
-                  <label className="flex items-center">
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      DNI
+                    </label>
                     <input
-                      type="radio"
-                      name="tipo"
-                      value="Familiar"
-                      checked={editSocio.tipoSocio === "FAMILIAR"}
-                      onChange={() => handleTipoChange("Familiar")}
-                      disabled={editSocio.esMenorDe12}
-                      className="mr-2"
+                      type="text"
+                      name="dni"
+                      value={editSocio.dni}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                     />
-                    Familiar
-                  </label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Nacimiento
+                    </label>
+                    <input
+                      type="text"
+                      name="fechaNacimiento"
+                      value={editSocio.fechaNacimiento}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={editSocio.email}
+                      onChange={handleChange}
+                      disabled={editSocio.esMenorDe12}
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                    />
+                    {editSocio.esMenorDe12 && (
+                      <span className="text-xs text-gray-500">Email del cabeza de familia</span>
+                    )}
+                    {errores.email && !editSocio.esMenorDe12 && (
+                      <span className="text-red-500 text-sm">{errores.email}</span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Teléfono de Contacto <span className="text-gray-400 text-xs">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="telefono"
+                      value={editSocio.telefono}
+                      onChange={handleChange}
+                      disabled={editSocio.esMenorDe12}
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                    />
+                    {editSocio.esMenorDe12 && (
+                      <span className="text-xs text-gray-500">Teléfono del cabeza de familia</span>
+                    )}
+                    {errores.telefono && !editSocio.esMenorDe12 && (
+                      <span className="text-red-500 text-sm">{errores.telefono}</span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dirección <span className="text-gray-400 text-xs">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="direccion"
+                      value={editSocio.direccion}
+                      onChange={handleChange}
+                      disabled={editSocio.esMenorDe12}
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                    />
+                    {errores.direccion && !editSocio.esMenorDe12 && (
+                      <span className="text-red-500 text-sm">{errores.direccion}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-4 mt-8">
-                <button
-                  type="button"
-                  onClick={handleCancelar}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className={`px-6 py-2 rounded-md ${
-                    editSocio.esMenorDe12
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-green-500 text-white hover:bg-green-600'
-                  }`}
-                  disabled={Object.keys(errores).length > 0 || editSocio.esMenorDe12}
-                >
-                  Guardar
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-      </div>
-    </AdminLayout>
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Socio
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="tipo"
+                        value="Individual"
+                        checked={editSocio.tipoSocio === "INDIVIDUAL"}
+                        onChange={() => handleTipoChange("Individual")}
+                        disabled={editSocio.esMenorDe12}
+                        className="mr-2"
+                      />
+                      Individual
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="tipo"
+                        value="Familiar"
+                        checked={editSocio.tipoSocio === "FAMILIAR"}
+                        onChange={() => handleTipoChange("Familiar")}
+                        disabled={editSocio.esMenorDe12}
+                        className="mr-2"
+                      />
+                      Familiar
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-8">
+                  <button
+                    type="button"
+                    onClick={handleCancelar}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-2 rounded-md ${
+                      editSocio.esMenorDe12
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                    disabled={Object.keys(errores).length > 0 || editSocio.esMenorDe12}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }

@@ -1,15 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/app/components/button"
 import { Input } from "@/app/components/input"
 import { Label } from "@/app/components/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/select"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Sidebar from "@/app/components/Sidebar"
+import { useAdminProtection } from "@/app/hooks/useAdminProtection"
 
 interface PracticaDeportiva {
   id: number
@@ -18,6 +18,9 @@ interface PracticaDeportiva {
 
 export default function AltaEntrenadorPage() {
   const router = useRouter()
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [showPassword, setShowPassword] = useState(false)
   const [practicasDeportivas, setPracticasDeportivas] = useState<PracticaDeportiva[]>([])
   const [loading, setLoading] = useState(false)
@@ -240,18 +243,48 @@ export default function AltaEntrenadorPage() {
     router.back()
   }
 
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null
+  }
+
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
 
-      <div className="flex-1 p-8">
-        <div className="mb-6 text-sm text-gray-800">
-          Panel Principal {">"} Entrenadores {">"} Registrar Entrenador
+      <main className="flex-1 p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
+            </div>
+          </div>
+
+          {/* Breadcrumb */}
+          <div className="text-sm text-gray-500 mb-6">
+            Panel Principal &gt; Entrenadores &gt; Registrar Entrenador
+          </div>
+
+          <h2 className="text-2xl font-semibold text-gray-800">Registrar Nuevo Entrenador</h2>
         </div>
 
-        <div className="mx-auto max-w-3xl">
-          <h1 className="mb-6 text-2xl font-semibold text-black">Registrar Nuevo Entrenador</h1>
-
+        {/* Formulario */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-3xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             {errors.general && (
               <div className={`p-3 rounded-md ${errors.general.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
@@ -399,7 +432,7 @@ export default function AltaEntrenadorPage() {
             </div>
           </form>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

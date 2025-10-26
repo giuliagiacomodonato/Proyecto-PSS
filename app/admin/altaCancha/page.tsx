@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, User } from 'lucide-react'
 
 interface Horario {
   inicio: string
@@ -422,23 +422,27 @@ export default function AltaCanchaPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
 
-      {/* Main Content */}
-      <div className="flex-1 p-8">
-        {/* Breadcrumb */}
-        <nav className="text-sm text-gray-500 mb-4">
-          <span>Panel Principal</span>
-          <span className="mx-2">&gt;</span>
-          <span>Canchas</span>
-          <span className="mx-2">&gt;</span>
-          <span className="text-gray-700">Registrar Cancha</span>
-        </nav>
+      <main className="flex-1 p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
+            </div>
+          </div>
 
-        {/* Título */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Registrar Cancha</h1>
+          {/* Breadcrumb */}
+          <div className="text-sm text-gray-500 mb-6">
+            Panel Principal &gt; Canchas &gt; Registrar Cancha
+          </div>
+
+          <h2 className="text-2xl font-semibold text-gray-800">Registrar Cancha</h2>
+        </div>
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
@@ -645,9 +649,8 @@ export default function AltaCanchaPage() {
               )}
             </button>
           </div>
-          </form>
-        </div>
-      </div>
-
+        </form>
+      </main>
+    </div>
   )
 }

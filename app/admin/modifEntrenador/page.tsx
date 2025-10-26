@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAdminProtection } from "@/app/hooks/useAdminProtection"
 import { Button } from "@/app/components/button"
 import { Input } from "@/app/components/input"
 import { Label } from "@/app/components/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/select"
-import { Eye, EyeOff, Check } from "lucide-react"
+import { Eye, EyeOff, Check, User } from "lucide-react"
 import Sidebar from "@/app/components/Sidebar"
 import Toast from "@/app/components/Toast"
 
@@ -31,6 +31,9 @@ interface Entrenador {
 export default function ModifEntrenadorPage() {
   const router = useRouter()
   
+  // ✅ Verificar que sea admin ANTES de renderizar (reemplaza la verificación anterior)
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [searchDni, setSearchDni] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [practicasDeportivas, setPracticasDeportivas] = useState<PracticaDeportiva[]>([])
@@ -77,30 +80,6 @@ export default function ModifEntrenadorPage() {
       return () => clearTimeout(timer)
     }
   }, [toastOpen, toastType, router])
-
-  // Verificar que solo Administrador puede acceder a esta página
-  useEffect(() => {
-    const usuario = localStorage.getItem('usuario')
-    
-    if (!usuario) {
-      // No hay usuario logeado, redirigir a login
-      router.replace('/')
-      return
-    }
-    
-    try {
-      const usuarioObj = JSON.parse(usuario)
-      
-      if (usuarioObj.rol !== 'ADMIN') {
-        // No es administrador, redirigir a su página principal
-        router.replace(`/${usuarioObj.rol.toLowerCase()}`)
-        return
-      }
-    } catch (error) {
-      console.error("Error parsing usuario:", error)
-      router.replace('/')
-    }
-  }, [router])
 
   // Fetch prácticas deportivas
   useEffect(() => {
@@ -336,19 +315,48 @@ export default function ModifEntrenadorPage() {
     setError("")
   }
 
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null
+  }
+
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={() => setToastOpen(false)} />
 
-      <div className="flex-1 p-8">
-        <div className="mb-6 text-sm text-gray-800">
-          Panel Principal {">"} Entrenadores {">"} Modificar Entrenador
+      <main className="flex-1 p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
+            </div>
+          </div>
+
+          {/* Breadcrumb */}
+          <div className="text-sm text-gray-500 mb-6">
+            Panel Principal &gt; Entrenadores &gt; Modificar Entrenador
+          </div>
+
+          <h2 className="text-2xl font-semibold text-gray-800">Modificar Entrenador</h2>
         </div>
 
-        <div className="mx-auto max-w-3xl">
-          <h1 className="mb-6 text-2xl font-semibold text-black">Modificar Entrenador</h1>
-
+        <div className="max-w-3xl">
           {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 mb-4">{error}</div>}
 
           {/* Búsqueda */}
@@ -507,7 +515,7 @@ export default function ModifEntrenadorPage() {
             </form>
           )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }
