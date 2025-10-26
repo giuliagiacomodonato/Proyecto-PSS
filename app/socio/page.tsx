@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Breadcrumb from '../components/Breadcrumb'
 import { 
   Home, 
   Volleyball,
@@ -12,9 +13,9 @@ import {
   User,
   ChevronRight,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react'
-import SidebarSocio from '../components/SidebarSocio'
 
 interface Practica {
   id: number
@@ -61,6 +62,7 @@ export default function SocioPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedPractica, setSelectedPractica] = useState<Practica | null>(null)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -106,17 +108,9 @@ export default function SocioPage() {
     fetchDashboardData()
   }, [router])
 
-  const handleLogout = () => {
-    // Limpiar sesión
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    // Redirigir al login
-    router.push('/')
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando dashboard...</p>
@@ -127,7 +121,7 @@ export default function SocioPage() {
 
   if (error && !dashboardData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <AlertCircle className="text-red-600 mx-auto mb-4" size={48} />
           <p className="text-red-600 mb-4">{error}</p>
@@ -149,55 +143,50 @@ export default function SocioPage() {
   const { socio, practicas, reservas, cuotas } = dashboardData
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <SidebarSocio onLogout={handleLogout} />
+    <>
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-gap-3">
+          <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+          <p className="text-red-700 text-sm ml-2">{error}</p>
+        </div>
+      )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestor Club Deportivo</h1>
-              <p className="text-sm text-gray-500 mt-1">Panel Principal</p>
-            </div>
-            <div className="flex items-center gap-3 bg-gray-100 px-4 py-2 rounded-full">
-              <User size={20} className="text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{socio.nombre}</span>
-            </div>
-          </div>
-        </header>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mx-8 mt-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-gap-3">
-            <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-            <p className="text-red-700 text-sm ml-2">{error}</p>
-          </div>
-        )}
-
-        {/* Dashboard Content */}
-        <main className="flex-1 overflow-auto">
+      {/* Dashboard Content */}
           <div className="p-8">
+            {/* Breadcrumb */}
+            <div className="mb-8">
+              <Breadcrumb items={[
+                { label: 'Panel Principal', active: true }
+              ]} />
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Main Content Area */}
               <div className="lg:col-span-2 space-y-8">
                 {/* Prácticas Deportivas Section */}
                 <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <Volleyball size={20} className="text-blue-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Prácticas Deportivas</h2>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Volleyball size={20} className="text-blue-600" />
+                        <h2 className="text-lg font-semibold text-gray-900">Prácticas Deportivas</h2>
+                      </div>
+                      <Link
+                        href="/socio/inscripciones"
+                        className="px-3 py-1.5 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
+                      >
+                        Inscripciones
+                      </Link>
                     </div>
                   </div>
                   <div className="divide-y divide-gray-200">
                     {practicas && practicas.length > 0 ? (
                       practicas.map((practica) => (
-                        <Link
+                        <button
                           key={practica.id}
-                          href="/socio/inscripciones"
-                          className="px-6 py-4 hover:bg-gray-50 transition-colors flex items-center justify-between group"
+                          onClick={() => setSelectedPractica(practica)}
+                          className="w-full px-6 py-4 hover:bg-gray-50 transition-colors flex items-center justify-between group text-left"
                         >
                           <div>
                             <p className="font-medium text-gray-900">{practica.nombre}</p>
@@ -206,17 +195,11 @@ export default function SocioPage() {
                             </p>
                           </div>
                           <ChevronRight size={20} className="text-gray-400 group-hover:text-gray-600" />
-                        </Link>
+                        </button>
                       ))
                     ) : (
                       <div className="px-6 py-8 text-center">
-                        <p className="text-gray-500 text-sm mb-4">No hay prácticas disponibles</p>
-                        <Link
-                          href="/socio/inscripciones"
-                          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                        >
-                          Explorar prácticas
-                        </Link>
+                        <p className="text-gray-500 text-sm">No hay prácticas disponibles</p>
                       </div>
                     )}
                   </div>
@@ -253,7 +236,7 @@ export default function SocioPage() {
                         <p className="text-gray-500 text-sm mb-4">No hay reservas activas</p>
                         <Link
                           href="/socio/reservaCancha"
-                          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
                         >
                           Nueva reserva
                         </Link>
@@ -308,8 +291,65 @@ export default function SocioPage() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+
+          {/* Modal de Práctica */}
+          {selectedPractica && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+              <div className="bg-white shadow-lg max-w-2xl w-full mx-4 pointer-events-auto border-3 border-black">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-8 py-6 border-b-2 border-black bg-gray-800 text-white">
+                  <h2 className="text-lg font-bold">{selectedPractica.nombre}</h2>
+                  <button
+                    onClick={() => setSelectedPractica(null)}
+                    className="text-white hover:text-gray-200 transition-colors"
+                  >
+                    <X size={28} />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="px-8 py-6 space-y-6 bg-white">
+                  {/* Descripción */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Descripción</h3>
+                    <p className="text-gray-700">{selectedPractica.descripcion || 'Sin descripción disponible'}</p>
+                  </div>
+
+                  {/* Información General */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedPractica.horario && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Horario</p>
+                        <p className="font-semibold text-gray-900">{selectedPractica.horario}</p>
+                      </div>
+                    )}
+                    {selectedPractica.precio && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Precio</p>
+                        <p className="font-semibold text-gray-900">${selectedPractica.precio.toLocaleString('es-AR')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-8 py-6 border-t-2 border-black bg-gray-800 flex gap-4">
+                  <button
+                    onClick={() => setSelectedPractica(null)}
+                    className="flex-1 px-4 py-3 border-2 border-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                  <Link
+                    href="/socio/inscripciones"
+                    className="flex-1 px-4 py-3 bg-white text-gray-800 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-center"
+                  >
+                    Ir a Inscripciones
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+    </>
   )
 }

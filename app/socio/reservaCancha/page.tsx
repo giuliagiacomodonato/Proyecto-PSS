@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import AdminLayout from '../../components/AdminLayout'
 import ReservaCancha from '../../components/ReservaCancha'
 import Toast from '../../components/Toast'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Breadcrumb from '../../components/Breadcrumb'
 import { LogOut } from 'lucide-react'
 
 interface ToastState {
@@ -78,53 +79,49 @@ export default function ReservaCanchaPage() {
     verificarUsuario()
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    router.push('/')
-  }
-
   if (loading) {
     return (
-      <AdminLayout rol="SOCIO" onLogout={handleLogout}>
-        <div className="flex justify-center items-center h-screen">
-          <div className="text-gray-600">Cargando...</div>
+      <>
+        <div className="mb-8">
+          <Breadcrumb items={[
+            { label: 'Panel Principal', href: '/socio' },
+            { label: 'Reserva de Canchas', active: true }
+          ]} />
+          <h1 className="text-3xl font-bold text-gray-900">Reserva de Canchas</h1>
+          <p className="text-sm text-gray-500 mt-2">Reserve una cancha para sus partidos</p>
         </div>
-      </AdminLayout>
+        <LoadingSpinner />
+      </>
     )
   }
 
   if (!usuario && !loading) {
     return (
-      <AdminLayout rol="SOCIO" onLogout={handleLogout}>
-        <div className="flex flex-col justify-center items-center h-screen gap-4">
-          <div className="text-red-600 text-lg font-semibold">No autorizado - Por favor, inicia sesión</div>
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Volver al inicio
-          </button>
-        </div>
-      </AdminLayout>
+      <div className="flex flex-col justify-center items-center h-96 gap-4">
+        <div className="text-red-600 text-lg font-semibold">No autorizado - Por favor, inicia sesión</div>
+        <button
+          onClick={() => router.push('/')}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Volver al inicio
+        </button>
+      </div>
     )
   }
 
   return (
-    <AdminLayout rol="SOCIO" onLogout={handleLogout}>
+    <>
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Reserva de Canchas</h1>
-          <div className="flex items-center gap-4">
-            {usuario && (
-              <>
-                <div className="text-sm text-gray-600">
-                  <p><strong>{usuario.nombre}</strong></p>
-                  <p>{usuario.email}</p>
-                </div>
-               
-              </>
-            )}
+        <div className="mb-8">
+          <Breadcrumb items={[
+            { label: 'Panel Principal', href: '/socio' },
+            { label: 'Reserva de Canchas', active: true }
+          ]} />
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Reserva de Canchas</h1>
+              <p className="text-sm text-gray-500 mt-2">Reserva una cancha para tus partidos</p>
+            </div>
           </div>
         </div>
         
@@ -145,6 +142,6 @@ export default function ReservaCanchaPage() {
           onClose={() => setToast({ ...toast, visible: false })}
         />
       )}
-    </AdminLayout>
+    </>
   )
 }

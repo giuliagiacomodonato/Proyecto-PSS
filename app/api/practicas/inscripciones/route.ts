@@ -21,6 +21,12 @@ export async function GET(request: NextRequest) {
             horaFin: true
           }
         },
+        entrenadores: {
+          select: {
+            id: true,
+            nombre: true,
+          }
+        },
         inscripciones: {
           where: {
             activa: true
@@ -57,6 +63,15 @@ export async function GET(request: NextRequest) {
       const inscriptosActuales = practica.inscripciones.length
       const cuposDisponibles = practica.cupo - inscriptosActuales
       const estaInscrito = socioInscripciones.includes(practica.id)
+      
+      // Obtener el primer entrenador si existe
+      const entrenador = practica.entrenadores.length > 0 
+        ? {
+            id: practica.entrenadores[0].id,
+            nombre: practica.entrenadores[0].nombre,
+            apellido: practica.entrenadores[0].apellido
+          }
+        : null
 
       return {
         id: practica.id,
@@ -67,6 +82,7 @@ export async function GET(request: NextRequest) {
         inscriptosActuales,
         cuposDisponibles,
         estaInscrito,
+        entrenador,
         horarios: practica.horarios.map((h: any) => ({
           id: h.id,
           dia: h.dia,
