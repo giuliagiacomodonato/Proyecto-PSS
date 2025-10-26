@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
 import Toast, { ToastType } from '@/app/components/Toast'
 import { User, Trash2, AlertTriangle } from 'lucide-react'
@@ -24,6 +25,9 @@ interface ToastState {
 
 export default function BajaAdminPage() {
   const router = useRouter()
+  // ✅ Verificar que sea admin ANTES de renderizar
+  const { isAuthorized, isChecking } = useAdminProtection()
+
   const [dni, setDni] = useState('')
   const [fechaBaja, setFechaBaja] = useState('')
   const [administrador, setAdministrador] = useState<Administrador | null>(null)
@@ -184,6 +188,23 @@ export default function BajaAdminPage() {
       month: '2-digit',
       year: 'numeric'
     })
+  }
+
+  // ✅ Mostrar pantalla de carga mientras verifica
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando acceso...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ No renderizar nada si no está autorizado
+  if (!isAuthorized) {
+    return null
   }
 
   return (

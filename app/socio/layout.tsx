@@ -9,9 +9,17 @@ interface SocioLayoutProps {
   children: React.ReactNode
 }
 
+interface Usuario {
+  id: number
+  nombre: string
+  email: string
+  tipoSocio?: 'INDIVIDUAL' | 'FAMILIAR'
+  familiarId?: number | null
+}
+
 export default function SocioLayout({ children }: SocioLayoutProps) {
   const router = useRouter()
-  const [userName, setUserName] = useState<string>('')
+  const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,8 +30,8 @@ export default function SocioLayout({ children }: SocioLayoutProps) {
       return
     }
 
-    const usuario = JSON.parse(usuarioGuardado)
-    setUserName(usuario.nombre || 'Usuario')
+    const usuarioData = JSON.parse(usuarioGuardado)
+    setUsuario(usuarioData)
     setLoading(false)
   }, [router])
 
@@ -44,9 +52,20 @@ export default function SocioLayout({ children }: SocioLayoutProps) {
     )
   }
 
+  if (!usuario) {
+    return null
+  }
+
+  // Determinar si es cabeza de familia (familiarId es null para cabeza de familia)
+  const esCabezaDeFamilia = usuario.tipoSocio === 'FAMILIAR' && usuario.familiarId === null
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header userName={userName} />
+      <Header 
+        userName={usuario.nombre} 
+        tipoSocio={usuario.tipoSocio}
+        esCabezaDeFamilia={esCabezaDeFamilia}
+      />
       <div className="flex">
         <SidebarSocio onLogout={handleLogout} />
         <main className="flex-1 p-6">
