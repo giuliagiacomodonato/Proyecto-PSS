@@ -2,7 +2,11 @@
 
 import { User } from 'lucide-react'
 
-export default function Header() {
+interface HeaderProps {
+  userName?: string
+}
+
+export default function Header({ userName = 'Usuario' }: HeaderProps) {
   return (
     <header className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
       <div className="flex items-center">
@@ -11,7 +15,7 @@ export default function Header() {
       
       <div className="flex items-center gap-3">
         <User size={20} />
-        <span className="text-sm">Usuario Admin</span>
+        <span className="text-sm">{userName}</span>
       </div>
     </header>
   )
