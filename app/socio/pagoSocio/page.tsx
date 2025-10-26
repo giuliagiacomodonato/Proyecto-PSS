@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Breadcrumb from '../../components/Breadcrumb'
 
 type Form = {
   titular: string
@@ -60,9 +61,18 @@ export default function PagoSocio() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white/90 rounded-xl p-6 shadow">
-        <h2 className="text-2xl font-semibold mb-4">Pagar Reserva</h2>
+    <>
+      <div className="mb-8">
+        <Breadcrumb items={[
+          { label: 'Panel Principal', href: '/socio' },
+          { label: 'Pagar Reserva', active: true }
+        ]} />
+        <h1 className="text-3xl font-bold text-gray-900">Pagar Reserva</h1>
+        <p className="text-sm text-gray-500 mt-2">Gestione los pagos de sus reservas</p>
+      </div>
+
+      <div className="max-w-md mx-auto bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <h2 className="text-2xl font-semibold mb-4">Detalles del Pago</h2>
 
         <div className="mb-4 text-sm text-gray-700">
           <div>Concepto: <strong>Reserva Cancha</strong></div>
@@ -103,11 +113,11 @@ export default function PagoSocio() {
         </form>
 
         {toast && (
-          <div className={`fixed right-6 bottom-6 max-w-xs p-3 rounded shadow-lg text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+          <div className={`mt-4 p-3 rounded text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
             {toast.msg}
           </div>
         )}
       </div>
-    </div>
+    </>
   )
 }

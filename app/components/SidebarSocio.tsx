@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Home, 
-  Users,
-  Dumbbell,
+  Volleyball,
+  Trophy,
   CreditCard,
   CheckSquare,
   User
@@ -31,19 +31,19 @@ export default function SidebarSocio({ onLogout }: SidebarSocioProps) {
       href: '/socio'
     },
     {
-      icon: <Users size={24} />,
+      icon: <Volleyball size={24} />,
       label: 'Inscripciones',
       href: '/socio/inscripciones'
     },
     {
-      icon: <Dumbbell size={24} />,
+      icon: <Trophy size={24} />,
       label: 'Reservas',
       href: '/socio/reservaCancha'
     },
     {
       icon: <CreditCard size={24} />,
       label: 'Pagos',
-      href: '/socio/pagos'
+      href: '/socio/pagoSocio'
     },
     {
       icon: <CheckSquare size={24} />,
@@ -90,7 +90,7 @@ export default function SidebarSocio({ onLogout }: SidebarSocioProps) {
           onClick={onLogout}
           className="w-full px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors font-medium border-t border-gray-200 pt-6 mt-6"
         >
-          Contacto
+          Cerrar sesión
         </button>
       )}
     </aside>
