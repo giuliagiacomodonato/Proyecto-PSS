@@ -171,12 +171,16 @@ export default function GrillaUsuariosPage() {
 												{u.rol === 'ADMIN' && (
 													<Link href={`/admin/modificarAdmin?dni=${u.dni}`} className="text-blue-600 mr-4">Modificar</Link>
 												)}
-												{u.rol === 'ENTRENADOR' && (
-													<Link href={`/admin/modifEntrenador?dni=${u.dni}`} className="text-blue-600 mr-4">Modificar</Link>
-												)}
-												{u.rol === 'SOCIO' && (
-													<Link href={`/admin/modifSocio?dni=${u.dni}`} className="text-blue-600 mr-4">Modificar</Link>
-												)}
+																		{u.rol === 'ENTRENADOR' && (
+																			<Link href={`/admin/modifEntrenador?dni=${u.dni}`} onClick={() => {
+																				try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
+																			}} className="text-blue-600 mr-4">Modificar</Link>
+																		)}
+																		{u.rol === 'SOCIO' && (
+																			<Link href={`/admin/modifSocio?dni=${u.dni}`} onClick={() => {
+																				try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
+																			}} className="text-blue-600 mr-4">Modificar</Link>
+																		)}
 
 												<button onClick={() => handleEliminar(u.dni)} className="text-red-600">Eliminar</button>
 											</td>

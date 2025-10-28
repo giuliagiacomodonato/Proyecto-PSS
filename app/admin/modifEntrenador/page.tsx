@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAdminProtection } from "@/app/hooks/useAdminProtection"
 import { Button } from "@/app/components/button"
 import { Input } from "@/app/components/input"
@@ -97,8 +97,8 @@ export default function ModifEntrenadorPage() {
     fetchPracticas()
   }, [])
 
-  // Buscar entrenador por DNI
-  const handleSearch = async () => {
+  // Buscar entrenador por DNI (acepta dni opcional para búsquedas programáticas)
+  const handleSearch = async (dniArg?: string) => {
     setError("")
     setEntrenadorEncontrado(null)
     setFormData({
@@ -113,14 +113,15 @@ export default function ModifEntrenadorPage() {
     })
     setErrors({})
 
-    if (!searchDni.trim()) {
+  const dniToSearch = ((dniArg ?? searchDni) || "").trim()
+    if (!dniToSearch) {
       setError("Ingrese el DNI del entrenador a buscar")
       return
     }
 
     setSearching(true)
     try {
-      const response = await fetch(`/api/entrenadores?dni=${searchDni}`)
+      const response = await fetch(`/api/entrenadores?dni=${encodeURIComponent(dniToSearch)}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -150,6 +151,19 @@ export default function ModifEntrenadorPage() {
       setSearching(false)
     }
   }
+
+  // Si la URL contiene ?dni=XXX y el admin está autorizado, lanzar búsqueda automática
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (isChecking) return
+    if (!isAuthorized) return
+    const dniParam = searchParams.get('dni')
+    if (dniParam && dniParam.trim()) {
+      setSearchDni(dniParam)
+      // lanzar búsqueda pasando el valor directamente
+      handleSearch(dniParam)
+    }
+  }, [isChecking, isAuthorized, searchParams])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -288,6 +302,18 @@ export default function ModifEntrenadorPage() {
         direccion: "",
       })
       setErrors({})
+      // Si venimos desde la grilla, redirigir de vuelta
+      try {
+        if (typeof window !== 'undefined') {
+          const returnTo = sessionStorage.getItem('returnTo')
+          if (returnTo === '/admin/grillaUsuarios') {
+            sessionStorage.removeItem('returnTo')
+            router.push(returnTo)
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al actualizar el entrenador")
       setToastMessage(err instanceof Error ? err.message : "Error al actualizar")
@@ -374,7 +400,7 @@ export default function ModifEntrenadorPage() {
                 />
               </div>
               <div className="flex items-end">
-                <Button onClick={handleSearch} disabled={searching}>
+                <Button onClick={() => handleSearch()} disabled={searching}>
                   {searching ? "Buscando..." : "Buscar"}
                 </Button>
               </div>
