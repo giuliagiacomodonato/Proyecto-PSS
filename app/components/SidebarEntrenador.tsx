@@ -9,6 +9,8 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  CheckSquare,
+  DollarSign,
 } from 'lucide-react'
 
 interface MenuItem {
@@ -43,9 +45,20 @@ export default function SidebarEntrenador() {
       href: '/entrenador'
     },
     {
+      icon: <CheckSquare size={18} />,
+      label: 'Registrar Asistencia',
+      href: '/entrenador/registrar-asistencia'
+    },
+    {
       icon: <FileText size={20} />,
       label: 'Reportes',
       href: '/entrenador/reportes'
+    }
+    ,
+    {
+      icon: <DollarSign size={18} />,
+      label: 'Modificar Precios',
+      href: '/entrenador/modificar-precios'
     }
   ]
 
@@ -60,7 +73,7 @@ export default function SidebarEntrenador() {
               <Link
                 href={item.href}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  pathname === item.href 
+                  (pathname === item.href || pathname?.startsWith(item.href + '/'))
                     ? 'bg-gray-100 text-gray-900' 
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
