@@ -12,7 +12,7 @@ interface SocioLayoutProps {
 export default function SocioLayout({ children, onLogout, userName }: SocioLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header userName={userName} />
+      <Header userName={userName || 'Usuario'} />
       <div className="flex">
         <SidebarSocio onLogout={onLogout} />
         <main className="flex-1 p-6">

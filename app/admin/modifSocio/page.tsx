@@ -1,176 +1,180 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useAdminProtection } from "@/app/hooks/useAdminProtection";
-import Sidebar from "@/app/components/Sidebar";
-import { User } from "lucide-react";
+'use client';
 
-import AdminLayout from "../../components/AdminLayout";
+import { Suspense } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useAdminProtection } from '@/app/hooks/useAdminProtection';
+import Sidebar from '@/app/components/Sidebar';
+import { User } from 'lucide-react';
 
 type Socio = {
-  id: number
-  nombre: string
-  dni: string
-  fechaNacimiento: string
-  email: string
-  telefono: string
-  direccion: string
-  tipoSocio: 'INDIVIDUAL' | 'FAMILIAR'
-  esMenorDe12: boolean
-}
+  id: number;
+  nombre: string;
+  dni: string;
+  fechaNacimiento: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  tipoSocio: 'INDIVIDUAL' | 'FAMILIAR';
+  esMenorDe12: boolean;
+};
 
-export default function ModificarSocio() {
-  // ✅ Verificar que sea admin ANTES de renderizar
+function ModificarSocioContent() {
   const { isAuthorized, isChecking } = useAdminProtection();
-  const router = useRouter()
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [dniBusqueda, setDniBusqueda] = useState("");
+  const [dniBusqueda, setDniBusqueda] = useState('');
   const [socio, setSocio] = useState<Socio | null>(null);
   const [editSocio, setEditSocio] = useState<Socio | null>(null);
-  const [mensaje, setMensaje] = useState("");
+  const [mensaje, setMensaje] = useState('');
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
 
- const buscarSocio = async (dniArg?: string) => {
-  try {
-    setMensaje('')
-    setErrores({})
-    const dniToSearch = ((dniArg ?? dniBusqueda) || '').trim()
-    if (!dniToSearch) {
-      setMensaje('Ingrese el DNI del socio a buscar.')
-      setSocio(null)
-      setEditSocio(null)
-      return
+  const buscarSocio = async (dniArg?: string) => {
+    try {
+      setMensaje('');
+      setErrores({});
+      const dniToSearch = ((dniArg ?? dniBusqueda) || '').trim();
+      if (!dniToSearch) {
+        setMensaje('Ingrese el DNI del socio a buscar.');
+        setSocio(null);
+        setEditSocio(null);
+        return;
+      }
+
+      const res = await fetch(`/api/socios?dni=${encodeURIComponent(dniToSearch)}`, {
+        cache: 'no-store',
+      });
+
+      if (!res.ok) {
+        setSocio(null);
+        setEditSocio(null);
+        setMensaje('Socio no encontrado.');
+        return;
+      }
+
+      const data = await res.json();
+      const socioEncontrado = data.socio;
+
+      if (!socioEncontrado) {
+        setSocio(null);
+        setEditSocio(null);
+        setMensaje('Socio no encontrado.');
+        return;
+      }
+
+      const normalizado: Socio = {
+        ...socioEncontrado,
+        fechaNacimiento: socioEncontrado.fechaNacimiento?.slice(0, 10) ?? '',
+        telefono: socioEncontrado.telefono ?? '',
+        direccion: socioEncontrado.direccion ?? '',
+        esMenorDe12: socioEncontrado.esMenorDe12 ?? false,
+      };
+
+      setSocio(normalizado);
+      setEditSocio(normalizado);
+    } catch (error) {
+      console.error('Error al buscar socio:', error);
+      setMensaje('Error al buscar el socio.');
     }
+  };
 
-    const res = await fetch(`/api/socios?dni=${encodeURIComponent(dniToSearch)}`, { cache: 'no-store' })
-
-    if (!res.ok) {
-      setSocio(null)
-      setEditSocio(null)
-      setMensaje('Socio no encontrado.')
-      return
+  // Auto-buscar si la URL tiene ?dni=...
+  useEffect(() => {
+    if (isChecking) return;
+    if (!isAuthorized) return;
+    const dniParam = searchParams.get('dni');
+    if (dniParam && dniParam.trim()) {
+      setDniBusqueda(dniParam);
+      buscarSocio(dniParam);
     }
-
-    const data = await res.json()
-    const socioEncontrado = data.socio
-
-    if (!socioEncontrado) {
-      setSocio(null)
-      setEditSocio(null)
-      setMensaje('Socio no encontrado.')
-      return
-    }
-
-    const normalizado: Socio = {
-      ...socioEncontrado,
-      fechaNacimiento: socioEncontrado.fechaNacimiento?.slice(0, 10) ?? '',
-      telefono: socioEncontrado.telefono ?? '',
-      direccion: socioEncontrado.direccion ?? '',
-      esMenorDe12: socioEncontrado.esMenorDe12 ?? false,
-    }
-
-    setSocio(normalizado)
-    setEditSocio(normalizado)
-  
-  } catch (error) {
-    console.error('Error al buscar socio:', error)
-    setMensaje('Error al buscar el socio.')
-  }
-}
-// Auto-buscar si la URL tiene ?dni=...
-const searchParams = useSearchParams()
-useEffect(() => {
-  if (isChecking) return
-  if (!isAuthorized) return
-  const dniParam = searchParams.get('dni')
-  if (dniParam && dniParam.trim()) {
-    setDniBusqueda(dniParam)
-    buscarSocio(dniParam)
-  }
-}, [isChecking, isAuthorized, searchParams])
+  }, [isChecking, isAuthorized, searchParams]);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editSocio) return;
     setEditSocio({ ...editSocio, [e.target.name]: e.target.value });
   };
 
-  const handleTipoChange = (tipo: "Individual" | "Familiar") => {
+  const handleTipoChange = (tipo: 'Individual' | 'Familiar') => {
     if (!editSocio) return;
-    setEditSocio({ ...editSocio, tipoSocio: tipo === "Individual" ? "INDIVIDUAL" : "FAMILIAR" });
+    setEditSocio({
+      ...editSocio,
+      tipoSocio: tipo === 'Individual' ? 'INDIVIDUAL' : 'FAMILIAR',
+    });
   };
 
   const validar = () => {
-  const errs: { [key: string]: string } = {}
-  if (editSocio) {
-    // Email es requerido y debe ser válido
-    if (!editSocio.email || !editSocio.email.includes('@')) {
-      errs.email = 'Correo inválido o requerido'
-    }
-    // Teléfono no es requerido, pero si se proporciona debe ser válido
-    if (editSocio.telefono && !/^\d*$/.test(editSocio.telefono)) {
-      errs.telefono = 'Teléfono debe contener solo números'
-    }
-    // Dirección no es requerida
-  }
-  setErrores(errs)
-  return Object.keys(errs).length === 0
-}
-
- const handleGuardar = async () => {
-  if (!validar() || !editSocio) return
-  try {
-    const res = await fetch('/api/socios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: editSocio.id,
-        email: editSocio.email,
-        telefono: editSocio.telefono,
-        direccion: editSocio.direccion,
-        tipoSocio: editSocio.tipoSocio,
-      }),
-    })
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ message: 'Error desconocido' }))
-      console.error('Error del servidor:', errorData)
-      setMensaje(errorData.message || 'No se pudo actualizar el socio.')
-      return
-    }
-    
-    const result = await res.json()
-    
-    // Construir el mensaje con información de socios convertidos si aplica
-    let mensajeFinal = result.message
-    if (result.sociosConvertidos && result.sociosConvertidos.length > 0) {
-      mensajeFinal += `\n\nSocios convertidos a INDIVIDUAL:\n${result.sociosConvertidos.join('\n')}`
-    }
-    
-    setMensaje(mensajeFinal)
-    setSocio(editSocio)
-    // Si venimos desde la grilla, redirigir de vuelta
-    try {
-      if (typeof window !== 'undefined') {
-        const returnTo = sessionStorage.getItem('returnTo')
-        if (returnTo === '/admin/grillaUsuarios') {
-          sessionStorage.removeItem('returnTo')
-          router.push(returnTo)
-        }
+    const errs: { [key: string]: string } = {};
+    if (editSocio) {
+      // Email es requerido y debe ser válido
+      if (!editSocio.email || !editSocio.email.includes('@')) {
+        errs.email = 'Correo inválido o requerido';
       }
-    } catch (e) {
-      // ignore
+      // Teléfono no es requerido, pero si se proporciona debe ser válido
+      if (editSocio.telefono && !/^\d*$/.test(editSocio.telefono)) {
+        errs.telefono = 'Teléfono debe contener solo números';
+      }
+      // Dirección no es requerida
     }
-  } catch (error) {
-    console.error('Error al actualizar socio:', error)
-    setMensaje('Error de conexión. No se pudo actualizar el socio.')
-  }
-}
+    setErrores(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleGuardar = async () => {
+    if (!validar() || !editSocio) return;
+    try {
+      const res = await fetch('/api/socios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editSocio.id,
+          email: editSocio.email,
+          telefono: editSocio.telefono,
+          direccion: editSocio.direccion,
+          tipoSocio: editSocio.tipoSocio,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Error desconocido' }));
+        console.error('Error del servidor:', errorData);
+        setMensaje(errorData.message || 'No se pudo actualizar el socio.');
+        return;
+      }
+
+      const result = await res.json();
+
+      // Construir el mensaje con información de socios convertidos si aplica
+      let mensajeFinal = result.message;
+      if (result.sociosConvertidos && result.sociosConvertidos.length > 0) {
+        mensajeFinal += `\n\nSocios convertidos a INDIVIDUAL:\n${result.sociosConvertidos.join('\n')}`;
+      }
+
+      setMensaje(mensajeFinal);
+      setSocio(editSocio);
+      // Si venimos desde la grilla, redirigir de vuelta
+      try {
+        if (typeof window !== 'undefined') {
+          const returnTo = sessionStorage.getItem('returnTo');
+          if (returnTo === '/admin/grillaUsuarios') {
+            sessionStorage.removeItem('returnTo');
+            router.push(returnTo);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (error) {
+      console.error('Error al actualizar socio:', error);
+      setMensaje('Error de conexión. No se pudo actualizar el socio.');
+    }
+  };
+
   const handleCancelar = () => {
     setEditSocio(socio);
-    setMensaje("");
+    setMensaje('');
     setErrores({});
   };
 
-  // ✅ Mostrar pantalla de carga mientras verifica
   if (isChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -182,7 +186,6 @@ useEffect(() => {
     );
   }
 
-  // ✅ No renderizar nada si no está autorizado
   if (!isAuthorized) {
     return null;
   }
@@ -357,8 +360,8 @@ useEffect(() => {
                         type="radio"
                         name="tipo"
                         value="Individual"
-                        checked={editSocio.tipoSocio === "INDIVIDUAL"}
-                        onChange={() => handleTipoChange("Individual")}
+                        checked={editSocio.tipoSocio === 'INDIVIDUAL'}
+                        onChange={() => handleTipoChange('Individual')}
                         disabled={editSocio.esMenorDe12}
                         className="mr-2 text-blue-600 focus:ring-2 focus:ring-blue-200"
                       />
@@ -369,8 +372,8 @@ useEffect(() => {
                         type="radio"
                         name="tipo"
                         value="Familiar"
-                        checked={editSocio.tipoSocio === "FAMILIAR"}
-                        onChange={() => handleTipoChange("Familiar")}
+                        checked={editSocio.tipoSocio === 'FAMILIAR'}
+                        onChange={() => handleTipoChange('Familiar')}
                         disabled={editSocio.esMenorDe12}
                         className="mr-2 text-blue-600 focus:ring-2 focus:ring-blue-200"
                       />
@@ -404,5 +407,13 @@ useEffect(() => {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ModificarSocioPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div></div>}>
+      <ModificarSocioContent />
+    </Suspense>
   );
 }

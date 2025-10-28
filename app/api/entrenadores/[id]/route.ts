@@ -2,9 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number.parseInt(params.id)
+    const { id: idParam } = await params
+    const id = Number.parseInt(idParam)
     if (isNaN(id)) {
       return NextResponse.json({ error: "ID inválido" }, { status: 400 })
     }
