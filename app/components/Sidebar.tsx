@@ -101,6 +101,11 @@ export default function Sidebar() {
         { label: 'Precios Canchas', href: '/admin/precios/canchas' },
         { label: 'Precios Prácticas', href: '/admin/precios/practicas' }
       ]
+    },
+     {
+      icon: <UsersRound size={20} />,
+      label: 'Usuarios',
+      href: '/admin/grillaUsuarios'
     }
   ]
 
