@@ -36,8 +36,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Precio base de la cuota mensual (puedes ajustarlo o sacarlo de una tabla de precios)
-    const PRECIO_BASE_CUOTA = 5000
+  // Precio base de la cuota mensual: leer desde config (editable por admin)
+  const { getPrecioBaseCuota } = await import('@/lib/config/cuota')
+  const PRECIO_BASE_CUOTA = await getPrecioBaseCuota()
 
     let planInfo: any = {
       tipoSocio: socio.tipoSocio,

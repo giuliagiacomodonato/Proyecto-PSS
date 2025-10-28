@@ -99,7 +99,8 @@ export default function Sidebar() {
       label: 'Modificar Precios',
       subItems: [
         { label: 'Precios Canchas', href: '/admin/precios/canchas' },
-        { label: 'Precios Prácticas', href: '/admin/precios/practicas' }
+        { label: 'Precios Prácticas', href: '/admin/precios/practicas' },
+        { label: 'Cuota Socios', href: '/admin/precios/cuotaSocios' }
       ]
     },
      {
