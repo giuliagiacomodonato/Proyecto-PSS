@@ -74,7 +74,7 @@ export default function Sidebar() {
       subItems: [
         { label: 'Registrar Cancha', href: '/admin/altaCancha' },
         { label: 'Modificar Cancha', href: '/admin/canchas/modificar' },
-        { label: 'Eliminar Cancha', href: '/admin/canchas/eliminar' }
+        { label: 'Eliminar Cancha', href: '/admin/bajaCancha' }
       ]
     },
     {

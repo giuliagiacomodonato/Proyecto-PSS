@@ -57,7 +57,7 @@ const Input: React.FC<InputProps> = ({ id, type = 'text', placeholder, value, on
     value={value}
     onChange={onChange}
     onBlur={onBlur}
-    className={`w-full p-3 border rounded-md focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out ${className}`}
+    className={`w-full p-3 border rounded-md text-gray-900 placeholder-gray-400 focus:ring-blue-600 focus:border-blue-600 transition duration-150 ease-in-out ${className}`}
     required={required}
   />
 )
