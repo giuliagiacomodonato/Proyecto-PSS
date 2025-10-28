@@ -181,32 +181,20 @@ export default function ReservaCancha({
     try {
       setShowConfirmModal(false)
       
-      // Guardar la reserva directamente sin pago (por ahora)
-      const response = await fetch('/api/reservas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          canchaId: selectedCancha.id,
-          fecha: selectedDate,
-          horario: selectedHora,
-          usuarioSocioId
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Error al guardar la reserva')
+      // Guardar los datos de la reserva en sessionStorage
+      const reservaData = {
+        canchaId: selectedCancha.id,
+        fecha: selectedDate,
+        horario: selectedHora,
+        usuarioSocioId,
+        precio: selectedCancha.precio,
+        nombreCancha: selectedCancha.nombre
       }
-
-      // Limpiar el formulario
-      setSelectedCancha(null)
-      setSelectedDate('')
-      setSelectedHora('')
-      setTurnosDisponibles([])
       
-      onSuccess()
+      sessionStorage.setItem('reservaPendiente', JSON.stringify(reservaData))
+      
+      // Redireccionar al pago
+      router.push(`/socio/pagoSocio?tipo=RESERVA_CANCHA`)
     } catch (error) {
       console.error('Error:', error)
       const message = error instanceof Error ? error.message : 'Error al procesar la reserva'

@@ -6,8 +6,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { canchaId, fecha, horario, usuarioSocioId } = body
 
+    console.log('Datos recibidos en /api/reservas:', { canchaId, fecha, horario, usuarioSocioId })
+
     // Validar datos requeridos
     if (!canchaId || !fecha || !horario || !usuarioSocioId) {
+      console.log('Error: Faltan campos requeridos')
       return NextResponse.json(
         { message: 'Todos los campos son requeridos' },
         { status: 400 }
@@ -19,7 +22,10 @@ export async function POST(request: NextRequest) {
       where: { id: usuarioSocioId }
     })
 
+    console.log('Usuario encontrado:', usuario)
+
     if (!usuario || usuario.rol !== 'SOCIO') {
+      console.log('Error: Usuario no es socio o no existe')
       return NextResponse.json(
         { message: 'No tienes permiso para realizar esta acción' },
         { status: 403 }
@@ -31,7 +37,10 @@ export async function POST(request: NextRequest) {
       where: { id: parseInt(canchaId) }
     })
 
+    console.log('Cancha encontrada:', cancha)
+
     if (!cancha) {
+      console.log('Error: Cancha no encontrada')
       return NextResponse.json(
         { message: 'Cancha no encontrada' },
         { status: 404 }
@@ -51,7 +60,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('Turno existente:', existingTurno)
+
     if (existingTurno) {
+      console.log('Error: Horario ya reservado')
       return NextResponse.json(
         { message: 'Este horario ya está reservado' },
         { status: 400 }
@@ -69,9 +81,12 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('Turno creado exitosamente:', nuevoTurno)
+
     return NextResponse.json(
       {
         message: 'Reserva creada exitosamente',
+        turnoId: nuevoTurno.id,
         turno: nuevoTurno
       },
       { status: 201 }
@@ -79,7 +94,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error al crear reserva:', error)
     return NextResponse.json(
-      { message: 'Error al crear la reserva' },
+      { message: 'Error al crear la reserva', error: error instanceof Error ? error.message : 'Error desconocido' },
       { status: 500 }
     )
   }

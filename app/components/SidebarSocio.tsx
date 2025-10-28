@@ -2,19 +2,23 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { 
   Home, 
   Volleyball,
   Trophy,
   CreditCard,
   CheckSquare,
-  User
+  User,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 
 interface MenuItem {
   icon: React.ReactNode
   label: string
-  href: string
+  href?: string
+  subItems?: { label: string; href: string }[]
 }
 
 interface SidebarSocioProps {
@@ -23,6 +27,15 @@ interface SidebarSocioProps {
 
 export default function SidebarSocio({ onLogout }: SidebarSocioProps) {
   const pathname = usePathname()
+  const [openMenus, setOpenMenus] = useState<string[]>([])
+
+  const toggleMenu = (label: string) => {
+    setOpenMenus(prev => 
+      prev.includes(label) 
+        ? prev.filter(item => item !== label)
+        : [...prev, label]
+    )
+  }
 
   const menuItems: MenuItem[] = [
     {
@@ -43,7 +56,10 @@ export default function SidebarSocio({ onLogout }: SidebarSocioProps) {
     {
       icon: <CreditCard size={24} />,
       label: 'Pagos',
-      href: '/socio/pagoSocio'
+      subItems: [
+        { label: 'Cuota Socio', href: '/socio/pagoSocio?tipo=cuota' },
+        { label: 'Cuota Practica', href: '/socio/pagoSocio?tipo=practica' }
+      ]
     },
     {
       icon: <CheckSquare size={24} />,
@@ -67,20 +83,61 @@ export default function SidebarSocio({ onLogout }: SidebarSocioProps) {
       {/* Menu Items */}
       <nav className="space-y-3 flex-1">
         {menuItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={`flex items-center gap-4 px-6 py-3 rounded-2xl transition-all font-medium ${
-              pathname === item.href 
-                ? 'bg-blue-100 text-blue-900 shadow-sm' 
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <div className={pathname === item.href ? 'text-blue-600' : 'text-gray-600'}>
-              {item.icon}
-            </div>
-            <span>{item.label}</span>
-          </Link>
+          <div key={item.label}>
+            {item.href && !item.subItems ? (
+              // Link directo sin submenú
+              <Link
+                href={item.href}
+                className={`flex items-center gap-4 px-6 py-3 rounded-2xl transition-all font-medium ${
+                  pathname === item.href 
+                    ? 'bg-blue-100 text-blue-900 shadow-sm' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className={pathname === item.href ? 'text-blue-600' : 'text-gray-600'}>
+                  {item.icon}
+                </div>
+                <span>{item.label}</span>
+              </Link>
+            ) : (
+              // Item con submenú
+              <>
+                <button
+                  onClick={() => toggleMenu(item.label)}
+                  className={`w-full flex items-center gap-4 px-6 py-3 rounded-2xl transition-all font-medium ${
+                    openMenus.includes(item.label) || pathname.includes(item.label.toLowerCase())
+                      ? 'bg-blue-100 text-blue-900 shadow-sm' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className={openMenus.includes(item.label) || pathname.includes(item.label.toLowerCase()) ? 'text-blue-600' : 'text-gray-600'}>
+                    {item.icon}
+                  </div>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {openMenus.includes(item.label) ? (
+                    <ChevronDown size={20} />
+                  ) : (
+                    <ChevronRight size={20} />
+                  )}
+                </button>
+                
+                {/* Submenú */}
+                {openMenus.includes(item.label) && item.subItems && (
+                  <div className="ml-9 mt-1 space-y-1">
+                    {item.subItems.map((subItem) => (
+                      <Link
+                        key={subItem.label}
+                        href={subItem.href}
+                        className="flex items-center gap-2 p-2 pl-4 rounded-lg transition-colors text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        {subItem.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         ))}
       </nav>
 

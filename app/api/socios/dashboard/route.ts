@@ -71,11 +71,14 @@ export async function GET(request: NextRequest) {
         : 'No disponible'
     }))
 
-    // Obtener reservas de canchas del socio
+    // Obtener reservas de canchas del socio que tienen pago asociado
     const reservas = await prisma.turno.findMany({
       where: {
         usuarioSocioId: socioIdNumber,
-        reservado: true
+        reservado: true,
+        pagos: {
+          some: {}  // Solo turnos que tienen al menos un pago
+        }
       },
       select: {
         id: true,
