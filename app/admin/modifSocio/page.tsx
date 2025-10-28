@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAdminProtection } from "@/app/hooks/useAdminProtection";
 import Sidebar from "@/app/components/Sidebar";
 import { User } from "lucide-react";
@@ -22,6 +22,7 @@ type Socio = {
 export default function ModificarSocio() {
   // ✅ Verificar que sea admin ANTES de renderizar
   const { isAuthorized, isChecking } = useAdminProtection();
+  const router = useRouter()
 
   const [dniBusqueda, setDniBusqueda] = useState("");
   const [socio, setSocio] = useState<Socio | null>(null);
@@ -146,6 +147,18 @@ useEffect(() => {
     
     setMensaje(mensajeFinal)
     setSocio(editSocio)
+    // Si venimos desde la grilla, redirigir de vuelta
+    try {
+      if (typeof window !== 'undefined') {
+        const returnTo = sessionStorage.getItem('returnTo')
+        if (returnTo === '/admin/grillaUsuarios') {
+          sessionStorage.removeItem('returnTo')
+          router.push(returnTo)
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   } catch (error) {
     console.error('Error al actualizar socio:', error)
     setMensaje('Error de conexión. No se pudo actualizar el socio.')

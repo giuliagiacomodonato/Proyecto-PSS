@@ -302,6 +302,18 @@ export default function ModifEntrenadorPage() {
         direccion: "",
       })
       setErrors({})
+      // Si venimos desde la grilla, redirigir de vuelta
+      try {
+        if (typeof window !== 'undefined') {
+          const returnTo = sessionStorage.getItem('returnTo')
+          if (returnTo === '/admin/grillaUsuarios') {
+            sessionStorage.removeItem('returnTo')
+            router.push(returnTo)
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al actualizar el entrenador")
       setToastMessage(err instanceof Error ? err.message : "Error al actualizar")
