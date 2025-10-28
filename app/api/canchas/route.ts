@@ -150,3 +150,59 @@ export async function GET() {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const canchaId = searchParams.get('id')
+
+    if (!canchaId) {
+      return NextResponse.json(
+        { message: 'ID de cancha no proporcionado' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la cancha existe y obtener contadores antes de eliminar
+    const cancha = await prisma.cancha.findUnique({
+      where: { id: parseInt(canchaId) },
+      include: {
+        _count: {
+          select: {
+            turnos: true,
+            horarios: true
+          }
+        }
+      }
+    })
+
+    if (!cancha) {
+      return NextResponse.json(
+        { message: 'Cancha no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    const canchaInfo = {
+      nombre: cancha.nombre,
+      turnosEliminados: cancha._count.turnos,
+      horariosEliminados: cancha._count.horarios
+    }
+
+    // Eliminar la cancha (el cascade eliminará automáticamente turnos, horarios y pagos asociados)
+    await prisma.cancha.delete({
+      where: { id: parseInt(canchaId) }
+    })
+
+    return NextResponse.json({
+      message: 'Cancha eliminada exitosamente',
+      cancha: canchaInfo
+    })
+  } catch (error) {
+    console.error('Error al eliminar cancha:', error)
+    return NextResponse.json(
+      { message: 'Error al eliminar la cancha' },
+      { status: 500 }
+    )
+  }
+}
