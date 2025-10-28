@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from 'next/navigation'
 import { useAdminProtection } from "@/app/hooks/useAdminProtection";
 import Sidebar from "@/app/components/Sidebar";
 import { User } from "lucide-react";
@@ -28,11 +29,19 @@ export default function ModificarSocio() {
   const [mensaje, setMensaje] = useState("");
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
 
- const buscarSocio = async () => {
+ const buscarSocio = async (dniArg?: string) => {
   try {
     setMensaje('')
     setErrores({})
-    const res = await fetch(`/api/socios?dni=${dniBusqueda}`, { cache: 'no-store' })
+    const dniToSearch = ((dniArg ?? dniBusqueda) || '').trim()
+    if (!dniToSearch) {
+      setMensaje('Ingrese el DNI del socio a buscar.')
+      setSocio(null)
+      setEditSocio(null)
+      return
+    }
+
+    const res = await fetch(`/api/socios?dni=${encodeURIComponent(dniToSearch)}`, { cache: 'no-store' })
 
     if (!res.ok) {
       setSocio(null)
@@ -67,6 +76,17 @@ export default function ModificarSocio() {
     setMensaje('Error al buscar el socio.')
   }
 }
+// Auto-buscar si la URL tiene ?dni=...
+const searchParams = useSearchParams()
+useEffect(() => {
+  if (isChecking) return
+  if (!isAuthorized) return
+  const dniParam = searchParams.get('dni')
+  if (dniParam && dniParam.trim()) {
+    setDniBusqueda(dniParam)
+    buscarSocio(dniParam)
+  }
+}, [isChecking, isAuthorized, searchParams])
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editSocio) return;
     setEditSocio({ ...editSocio, [e.target.name]: e.target.value });
@@ -184,10 +204,10 @@ export default function ModificarSocio() {
               placeholder="Buscar Socio por DNI"
               value={dniBusqueda}
               onChange={(e) => setDniBusqueda(e.target.value)}
-              className="border px-3 py-2 rounded w-64"
+              className="border px-3 py-2 rounded w-64 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <button
-              onClick={buscarSocio}
+              onClick={() => buscarSocio()}
               className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
               Buscar
@@ -226,7 +246,7 @@ export default function ModificarSocio() {
                       name="nombre"
                       value={editSocio.nombre}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-900"
                     />
                   </div>
                   <div>
@@ -238,7 +258,7 @@ export default function ModificarSocio() {
                       name="dni"
                       value={editSocio.dni}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-900"
                     />
                   </div>
                   <div>
@@ -250,7 +270,7 @@ export default function ModificarSocio() {
                       name="fechaNacimiento"
                       value={editSocio.fechaNacimiento}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-900"
                     />
                   </div>
                   <div>
@@ -263,7 +283,7 @@ export default function ModificarSocio() {
                       value={editSocio.email}
                       onChange={handleChange}
                       disabled={editSocio.esMenorDe12}
-                      className={`w-full px-3 py-2 border rounded-md ${
+                      className={`w-full px-3 py-2 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
                       }`}
                     />
@@ -284,7 +304,7 @@ export default function ModificarSocio() {
                       value={editSocio.telefono}
                       onChange={handleChange}
                       disabled={editSocio.esMenorDe12}
-                      className={`w-full px-3 py-2 border rounded-md ${
+                      className={`w-full px-3 py-2 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
                       }`}
                     />
@@ -305,7 +325,7 @@ export default function ModificarSocio() {
                       value={editSocio.direccion}
                       onChange={handleChange}
                       disabled={editSocio.esMenorDe12}
-                      className={`w-full px-3 py-2 border rounded-md ${
+                      className={`w-full px-3 py-2 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         editSocio.esMenorDe12 ? 'bg-gray-100 cursor-not-allowed' : ''
                       }`}
                     />
@@ -319,7 +339,7 @@ export default function ModificarSocio() {
                     Tipo de Socio
                   </label>
                   <div className="flex gap-4">
-                    <label className="flex items-center">
+                    <label className="flex items-center text-gray-900">
                       <input
                         type="radio"
                         name="tipo"
@@ -327,11 +347,11 @@ export default function ModificarSocio() {
                         checked={editSocio.tipoSocio === "INDIVIDUAL"}
                         onChange={() => handleTipoChange("Individual")}
                         disabled={editSocio.esMenorDe12}
-                        className="mr-2"
+                        className="mr-2 text-blue-600 focus:ring-2 focus:ring-blue-200"
                       />
-                      Individual
+                      <span className="text-sm">Individual</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center text-gray-900">
                       <input
                         type="radio"
                         name="tipo"
@@ -339,9 +359,9 @@ export default function ModificarSocio() {
                         checked={editSocio.tipoSocio === "FAMILIAR"}
                         onChange={() => handleTipoChange("Familiar")}
                         disabled={editSocio.esMenorDe12}
-                        className="mr-2"
+                        className="mr-2 text-blue-600 focus:ring-2 focus:ring-blue-200"
                       />
-                      Familiar
+                      <span className="text-sm">Familiar</span>
                     </label>
                   </div>
                 </div>
