@@ -14,7 +14,7 @@ export default function SocioLayout({ children, onLogout, userName }: SocioLayou
     <div className="min-h-screen bg-gray-50">
       <Header userName={userName || 'Usuario'} />
       <div className="flex">
-        <SidebarSocio onLogout={onLogout} />
+  <SidebarSocio />
         <main className="flex-1 p-6">
           {children}
         </main>

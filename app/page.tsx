@@ -321,9 +321,9 @@ export default function Home() {
         </form>
       </div>
       {/* Mensaje inline de éxito/error */}
-      {mensaje && (
+      {mensaje && mensajeTipo === 'error' && (
         <div className="mt-6 flex justify-center">
-          <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+          <div className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap bg-red-100 text-red-800">
             {mensaje}
           </div>
         </div>

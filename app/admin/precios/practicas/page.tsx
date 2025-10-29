@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Breadcrumb from '../../components/Breadcrumb'
-import AdminLayout from '../../components/AdminLayout'
+import Breadcrumb from '../../../components/Breadcrumb'
+import AdminLayout from '../../../components/AdminLayout'
 
 interface Practica {
   id: number

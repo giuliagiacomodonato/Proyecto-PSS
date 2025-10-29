@@ -67,7 +67,7 @@ export default function SocioLayout({ children }: SocioLayoutProps) {
         esCabezaDeFamilia={esCabezaDeFamilia}
       />
       <div className="flex">
-        <SidebarSocio onLogout={handleLogout} />
+  <SidebarSocio />
         <main className="flex-1 p-6">
           {children}
         </main>

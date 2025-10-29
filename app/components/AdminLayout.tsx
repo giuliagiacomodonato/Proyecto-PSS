@@ -12,14 +12,13 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children, rol, userName = 'Usuario', onLogout }: AdminLayoutProps) {
-  const isSocio = rol === 'SOCIO'
-  
+  const isSocio = rol === 'SOCIO';
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header userName={userName} />
+      <Header userName={userName} rol={rol} />
       <div className="flex">
         {isSocio ? (
-          <SidebarSocio onLogout={onLogout} />
+          <SidebarSocio />
         ) : (
           <Sidebar />
         )}

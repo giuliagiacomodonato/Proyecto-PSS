@@ -13,7 +13,8 @@ import {
   DollarSign,
   ChevronDown,
   ChevronRight,
-  Check
+  Check,
+  LogOut
 } from 'lucide-react'
 
 interface MenuItem {
@@ -110,10 +111,19 @@ export default function Sidebar() {
     }
   ]
 
+  // Cerrar sesión: limpia localStorage y redirige a login
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      window.location.href = '/';
+    }
+  };
+
   return (
-    <aside className="w-80 bg-white min-h-screen p-4 border-r border-gray-200">
+    <aside className="w-80 bg-white min-h-screen p-4 border-r border-gray-200 flex flex-col">
       {/* Menu Items */}
-      <nav className="space-y-2">
+      <nav className="space-y-2 flex-1">
         {menuItems.map((item) => (
           <div key={item.label}>
             {item.href && !item.subItems ? (
@@ -144,7 +154,6 @@ export default function Sidebar() {
                     <ChevronRight size={20} />
                   )}
                 </button>
-                
                 {/* Submenú */}
                 {openMenus.includes(item.label) && item.subItems && (
                   <div className="ml-9 mt-1 space-y-1">
@@ -169,6 +178,14 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+      {/* Botón cerrar sesión */}
+      <button
+        onClick={handleLogout}
+        className="w-full flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors mt-auto border-t border-gray-200 pt-4"
+      >
+        <LogOut size={20} />
+        <span>Cerrar sesión</span>
+      </button>
     </aside>
   )
 }
