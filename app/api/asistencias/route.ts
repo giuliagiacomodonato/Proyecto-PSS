@@ -107,32 +107,22 @@ export async function POST(request: NextRequest) {
         })
 
         if (asistenciaExistente) {
-          // Si el checkbox está desmarcado (presente = false), eliminar el registro
-          if (!asist.presente) {
-            return await prisma.asistencia.delete({
-              where: { id: asistenciaExistente.id },
-            })
-          } else {
-            // Si está marcado, actualizar el registro existente
-            return await prisma.asistencia.update({
-              where: { id: asistenciaExistente.id },
-              data: { presente: asist.presente },
-            })
-          }
+          // Actualizar el registro existente (presente o ausente)
+          return await prisma.asistencia.update({
+            where: { id: asistenciaExistente.id },
+            data: { presente: asist.presente },
+          })
         } else {
-          // Solo crear nuevo registro si está marcado como presente
-          if (asist.presente) {
-            return await prisma.asistencia.create({
-              data: {
-                inscripcionId: asist.inscripcionId,
-                usuarioSocioId: asist.usuarioSocioId,
-                practicaDeportivaId: parseInt(practicaId),
-                fecha: fechaRegistro,
-                presente: asist.presente,
-              },
-            })
-          }
-          return null // No crear registro si no está presente
+          // Crear nuevo registro (presente o ausente)
+          return await prisma.asistencia.create({
+            data: {
+              inscripcionId: asist.inscripcionId,
+              usuarioSocioId: asist.usuarioSocioId,
+              practicaDeportivaId: parseInt(practicaId),
+              fecha: fechaRegistro,
+              presente: asist.presente,
+            },
+          })
         }
       })
     )
