@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
-import Toast, { ToastType } from '@/app/components/Toast'
 import { User, Trash2, AlertTriangle } from 'lucide-react'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 
@@ -13,12 +12,6 @@ interface Cancha {
   tipo: string
   ubicacion: string
   precio: number
-}
-
-interface ToastState {
-  isOpen: boolean
-  message: string
-  type: ToastType
 }
 
 export default function BajaCanchaPage() {
@@ -31,11 +24,7 @@ export default function BajaCanchaPage() {
   const [loading, setLoading] = useState(false)
   const [loadingCanchas, setLoadingCanchas] = useState(true)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [toast, setToast] = useState<ToastState>({
-    isOpen: false,
-    message: '',
-    type: 'success'
-  })
+  const [successMessage, setSuccessMessage] = useState('')
 
   // Cargar canchas al montar el componente
   useEffect(() => {
@@ -54,18 +43,10 @@ export default function BajaCanchaPage() {
       const data = await response.json()
       setCanchas(data.canchas || [])
     } catch (error) {
-      showToast('Error al cargar las canchas', 'error')
+      console.error('Error al cargar canchas:', error)
     } finally {
       setLoadingCanchas(false)
     }
-  }
-
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ isOpen: true, message, type })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isOpen: false }))
   }
 
   // Cuando se selecciona una cancha del dropdown
@@ -83,7 +64,7 @@ export default function BajaCanchaPage() {
   // Abrir modal de confirmación
   const handleConfirmarBaja = () => {
     if (!canchaSeleccionada) {
-      showToast('Debe seleccionar una cancha', 'error')
+      console.error('Debe seleccionar una cancha')
       return
     }
     setShowConfirmModal(true)
@@ -112,8 +93,8 @@ export default function BajaCanchaPage() {
       // Cerrar modal de confirmación
       setShowConfirmModal(false)
 
-      // Mostrar toast de éxito (esquina superior derecha, no bloquea UI)
-      showToast('¡Cancha eliminada exitosamente!', 'success')
+      // Mostrar mensaje de éxito al lado del botón
+      setSuccessMessage('¡Cancha eliminada exitosamente!')
       
       // Limpiar formulario
       setCanchaId('')
@@ -130,11 +111,7 @@ export default function BajaCanchaPage() {
     } catch (error) {
       // Cerrar modal de confirmación en caso de error
       setShowConfirmModal(false)
-      
-      showToast(
-        error instanceof Error ? error.message : 'Error al eliminar cancha',
-        'error'
-      )
+      console.error('Error al eliminar cancha:', error)
     } finally {
       setLoading(false)
     }
@@ -243,15 +220,22 @@ export default function BajaCanchaPage() {
             >
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={handleConfirmarBaja}
-              disabled={!canchaSeleccionada || loading}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <Trash2 className="w-5 h-5" />
-              Confirmar Baja
-            </button>
+            <div className="flex-1 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmarBaja}
+                disabled={!canchaSeleccionada || loading}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-5 h-5" />
+                Confirmar Baja
+              </button>
+              {successMessage && (
+                <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg whitespace-nowrap">
+                  ✓ {successMessage}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -317,14 +301,6 @@ export default function BajaCanchaPage() {
         </div>
       )}
 
-      {/* Toast - Esquina superior derecha, no bloquea la UI */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-        duration={5000}
-      />
     </div>
   )
 }

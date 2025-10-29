@@ -381,7 +381,7 @@ function ModificarSocioContent() {
                     </label>
                   </div>
                 </div>
-                <div className="flex gap-4 mt-8">
+                <div className="flex gap-4 mt-8 items-center">
                   <button
                     type="button"
                     onClick={handleCancelar}
@@ -400,6 +400,11 @@ function ModificarSocioContent() {
                   >
                     Guardar
                   </button>
+                  {mensaje && (
+                    <div className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${mensaje.toLowerCase().includes('error') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                      {mensaje}
+                    </div>
+                  )}
                 </div>
               </form>
             </>

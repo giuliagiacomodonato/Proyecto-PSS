@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
-import Toast, { ToastType } from '@/app/components/Toast'
 import { User, Trash2, AlertTriangle } from 'lucide-react'
 
 interface Administrador {
@@ -17,11 +16,6 @@ interface Administrador {
   fechaAlta: string
 }
 
-interface ToastState {
-  isOpen: boolean
-  message: string
-  type: ToastType
-}
 
 export default function BajaAdminPage() {
   const router = useRouter()
@@ -35,11 +29,8 @@ export default function BajaAdminPage() {
   const [searching, setSearching] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [errors, setErrors] = useState<{ dni?: string }>({})
-  const [toast, setToast] = useState<ToastState>({
-    isOpen: false,
-    message: '',
-    type: 'success'
-  })
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info'>('success')
 
   // Establecer fecha actual al cargar el componente
   useEffect(() => {
@@ -52,13 +43,6 @@ export default function BajaAdminPage() {
     setFechaBaja(fechaFormateada)
   }, [])
 
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ isOpen: true, message, type })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isOpen: false }))
-  }
 
   // Validar DNI en tiempo real
   const handleDniChange = (value: string) => {
@@ -96,13 +80,12 @@ export default function BajaAdminPage() {
       }
 
       setAdministrador(data.administrador)
-      showToast('Administrador encontrado', 'info')
+  setMensaje('Administrador encontrado')
+  setMensajeTipo('info')
 
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Error al buscar administrador',
-        'error'
-      )
+      setMensaje(error instanceof Error ? error.message : 'Error al buscar administrador')
+      setMensajeTipo('error')
       setAdministrador(null)
     } finally {
       setSearching(false)
@@ -150,7 +133,8 @@ export default function BajaAdminPage() {
       setShowConfirmModal(false)
 
       // Mostrar toast de éxito (esquina superior derecha, no bloquea UI)
-      showToast('¡Administrador eliminado exitosamente!', 'success')
+  setMensaje('¡Administrador eliminado exitosamente!')
+  setMensajeTipo('success')
       
       // Limpiar formulario
       setDni('')
@@ -165,10 +149,8 @@ export default function BajaAdminPage() {
       // Cerrar modal de confirmación en caso de error
       setShowConfirmModal(false)
       
-      showToast(
-        error instanceof Error ? error.message : 'Error al eliminar administrador',
-        'error'
-      )
+      setMensaje(error instanceof Error ? error.message : 'Error al eliminar administrador')
+      setMensajeTipo('error')
     } finally {
       setLoading(false)
     }
@@ -405,14 +387,14 @@ export default function BajaAdminPage() {
         </div>
       )}
 
-      {/* Toast - Esquina superior derecha, no bloquea la UI */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-        duration={5000}
-      />
+      {/* Mensaje inline de éxito/error */}
+      {mensaje && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+            {mensaje}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -15,7 +15,6 @@ import {
   Check,
   X
 } from 'lucide-react'
-import Toast from '../../components/Toast'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Breadcrumb from '../../components/Breadcrumb'
 
@@ -59,15 +58,8 @@ export default function InscripcionesPage() {
   const [confirmData, setConfirmData] = useState<ConfirmData>({ practica: null })
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<number, string>>({})
-  const [toast, setToast] = useState<{
-    message: string
-    type: 'success' | 'error'
-    isOpen: boolean
-  }>({
-    message: '',
-    type: 'success',
-    isOpen: false
-  })
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error'>('success')
 
   useEffect(() => {
     const fetchPracticas = async () => {
@@ -94,11 +86,8 @@ export default function InscripcionesPage() {
         setPracticas(data.practicas)
       } catch (error) {
         console.error('Error:', error)
-        setToast({
-          message: 'Error al cargar las prácticas disponibles',
-          type: 'error',
-          isOpen: true
-        })
+        setMensaje('Error al cargar las prácticas disponibles')
+        setMensajeTipo('error')
       } finally {
         setLoading(false)
       }
@@ -109,14 +98,13 @@ export default function InscripcionesPage() {
 
   // Redirigir al dashboard después de inscripción exitosa
   useEffect(() => {
-    if (toast.isOpen && toast.type === 'success' && toast.message.includes('Inscripción exitosa')) {
+    if (mensajeTipo === 'success' && mensaje && mensaje.includes('Inscripción exitosa')) {
       const timer = setTimeout(() => {
         router.push('/socio')
-      }, 2000) // Redirigir después de 2 segundos
-
+      }, 2000)
       return () => clearTimeout(timer)
     }
-  }, [toast, router])
+  }, [mensaje, mensajeTipo, router])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -165,18 +153,12 @@ export default function InscripcionesPage() {
             [confirmData.practica.id]: data.error || 'Error al registrar la inscripción'
           })
         }
-        setToast({
-          message: data.error || 'Error al registrar la inscripción',
-          type: 'error',
-          isOpen: true
-        })
+        setMensaje(data.error || 'Error al registrar la inscripción')
+        setMensajeTipo('error')
       } else {
         // Éxito
-        setToast({
-          message: `¡Inscripción exitosa en ${confirmData.practica.nombre}!`,
-          type: 'success',
-          isOpen: true
-        })
+        setMensaje(`¡Inscripción exitosa en ${confirmData.practica.nombre}!`)
+        setMensajeTipo('success')
 
         // Actualizar la lista de prácticas
         setPracticas(prev =>
@@ -197,11 +179,8 @@ export default function InscripcionesPage() {
       setConfirmData({ practica: null })
     } catch (error) {
       console.error('Error:', error)
-      setToast({
-        message: 'Error al procesar la inscripción',
-        type: 'error',
-        isOpen: true
-      })
+      setMensaje('Error al procesar la inscripción')
+      setMensajeTipo('error')
     } finally {
       setSubmitting(false)
     }
@@ -431,13 +410,14 @@ export default function InscripcionesPage() {
         </div>
       )}
 
-      {/* Toast */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
-      />
+      {/* Mensaje inline de éxito/error */}
+      {mensaje && (
+        <div className={`mt-8 flex justify-center`}>
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+            {mensaje}
+          </div>
+        </div>
+      )}
     </>
   )
 }

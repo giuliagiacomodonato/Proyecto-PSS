@@ -4,14 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Sidebar from '@/app/components/Sidebar'
-import Toast, { ToastType } from '@/app/components/Toast'
 import { User } from 'lucide-react'
 
-interface ToastState {
-  isOpen: boolean
-  message: string
-  type: ToastType
-}
 
 export default function BajaSocioPage() {
   const router = useRouter()
@@ -23,11 +17,8 @@ export default function BajaSocioPage() {
   const [loading, setLoading] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [errors, setErrors] = useState<{ dni?: string }>({})
-  const [toast, setToast] = useState<ToastState>({
-    isOpen: false,
-    message: '',
-    type: 'success'
-  })
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error'>('success')
 
   // Al montar el componente, establecer la fecha actual formateada
   useEffect(() => {
@@ -40,15 +31,6 @@ export default function BajaSocioPage() {
     setFechaBaja(fechaFormateada)
   }, [])
 
-  // Función para mostrar un toast (mensaje flotante)
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ isOpen: true, message, type })
-  }
-
-  // Función para cerrar el toast
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isOpen: false }))
-  }
 
   // Maneja el cambio de valor del campo DNI y valida formato
   const handleDniChange = (value: string) => {
@@ -81,10 +63,8 @@ export default function BajaSocioPage() {
       }
       setShowConfirmModal(true)
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Error al buscar socio',
-        'error'
-      )
+      setMensaje(error instanceof Error ? error.message : 'Error al buscar socio')
+      setMensajeTipo('error')
     } finally {
       setLoading(false)
     }
@@ -114,17 +94,16 @@ export default function BajaSocioPage() {
         throw new Error(mensaje)
       }
       setShowConfirmModal(false)
-      showToast(mensaje, 'success')
+  setMensaje(mensaje)
+  setMensajeTipo('success')
       setDni('')
       setTimeout(() => {
         router.push('/admin')
       }, 3000)
     } catch (error) {
       setShowConfirmModal(false)
-      showToast(
-        error instanceof Error ? error.message : 'Error al eliminar socio',
-        'error'
-      )
+      setMensaje(error instanceof Error ? error.message : 'Error al eliminar socio')
+      setMensajeTipo('error')
     } finally {
       setLoading(false)
     }
@@ -282,14 +261,14 @@ export default function BajaSocioPage() {
           </div>
         </div>
       )}
-      {/* Toast para mostrar mensajes de éxito o error */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-        duration={5000}
-      />
+      {/* Mensaje inline de éxito/error */}
+      {mensaje && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+            {mensaje}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

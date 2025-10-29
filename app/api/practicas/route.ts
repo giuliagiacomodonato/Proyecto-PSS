@@ -179,6 +179,55 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
+    
+    // Detectar si es actualización de precios en bulk o actualización completa
+    if (body.actualizaciones && Array.isArray(body.actualizaciones)) {
+      // Actualización en bulk de precios
+      const actualizaciones = body.actualizaciones
+
+      if (!Array.isArray(actualizaciones) || actualizaciones.length === 0) {
+        return NextResponse.json(
+          { error: 'Debe proporcionar al menos una actualización' },
+          { status: 400 }
+        )
+      }
+
+      // Validar cada actualización
+      for (const act of actualizaciones) {
+        if (!act.id || typeof act.id !== 'number') {
+          return NextResponse.json(
+            { error: 'Cada actualización debe tener un ID válido' },
+            { status: 400 }
+          )
+        }
+        if (act.precio === undefined || typeof act.precio !== 'number' || act.precio <= 0) {
+          return NextResponse.json(
+            { error: `El precio para la práctica ${act.id} debe ser un número positivo` },
+            { status: 400 }
+          )
+        }
+      }
+
+      // Actualizar todos los precios
+      const resultados = await Promise.all(
+        actualizaciones.map(act =>
+          prisma.practicaDeportiva.update({
+            where: { id: act.id },
+            data: { precio: act.precio }
+          })
+        )
+      )
+
+      return NextResponse.json(
+        {
+          message: 'Precios actualizados correctamente',
+          practicas: resultados
+        },
+        { status: 200 }
+      )
+    }
+
+    // Actualización completa de una práctica
     const { id, nombre, descripcion, cupo, precio, horarios } = body
 
     // Validar que se proporcione el ID

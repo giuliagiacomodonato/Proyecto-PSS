@@ -69,19 +69,7 @@ const Label: React.FC<LabelProps> = ({ htmlFor, children, className = '' }) => (
   </label>
 )
 
-type ToastProps = { message: string; type?: 'error' | 'success'; isOpen: boolean; onClose: () => void }
-const Toast: React.FC<ToastProps> = ({ message, type = 'success', isOpen, onClose }) => {
-  if (!isOpen) return null
-  const bgColor = type === 'error' ? 'bg-red-600' : 'bg-green-600'
-  return (
-    <div className="fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-2xl text-white max-w-sm" style={{ backgroundColor: bgColor }}>
-      <div className="flex justify-between items-center">
-        <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
-      </div>
-    </div>
-  )
-}
+// Toast eliminado, feedback inline
 // --- FIN Componentes Mock ---
 
 
@@ -117,12 +105,10 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'error' | 'success'>('success');
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensajeTipo, setMensajeTipo] = useState<'error' | 'success'>('success');
   const [submitted, setSubmitted] = useState(false);
 
-  const closeToast = () => setToastOpen(false);
   
   // Criterio de Aceptación: El botón debe estar deshabilitado hasta que todos los campos obligatorios se encuentren rellenos.
 
@@ -168,9 +154,8 @@ export default function Home() {
     
     // Si hay errores de validación, detenemos el submit.
     if (Object.keys(newErrors).length > 0) {
-      setToastMessage('Por favor, rellena y corrige todos los campos.');
-      setToastType('error');
-      setToastOpen(true);
+  setMensaje('Por favor, rellena y corrige todos los campos.');
+  setMensajeTipo('error');
       return;
     }
 
@@ -220,13 +205,11 @@ export default function Home() {
           const msg = data.error || 'No tenés acceso con esa cuenta.'
           setErrors((prev) => ({ ...prev, email: msg }))
           // Mostrar además un toast para que sea visible aunque no veas el campo
-          setToastMessage(msg)
-          setToastType('error')
-          setToastOpen(true)
+          setMensaje(msg)
+          setMensajeTipo('error')
         } else {
-          setToastMessage(errorMessage);
-          setToastType('error');
-          setToastOpen(true);
+          setMensaje(errorMessage);
+          setMensajeTipo('error');
         }
         return;
       }
@@ -248,20 +231,17 @@ export default function Home() {
   const redirectionPath = REDIRECTION_MAP[rol as Role];
 
       if (redirectionPath) {
-        setToastMessage(`Inicio de sesión exitoso. Redirigiendo a ${rol}...`);
-        setToastType('success');
-        setToastOpen(true);
+  setMensaje(`Inicio de sesión exitoso. Redirigiendo a ${rol}...`);
+  setMensajeTipo('success');
         router.replace(redirectionPath)
       } else {
-        setToastMessage('Error: Rol de usuario no reconocido.');
-        setToastType('error');
-        setToastOpen(true);
+  setMensaje('Error: Rol de usuario no reconocido.');
+  setMensajeTipo('error');
       }
       
     } catch (err) {
-      setToastMessage('Error de conexión o servidor no disponible.');
-      setToastType('error');
-      setToastOpen(true);
+  setMensaje('Error de conexión o servidor no disponible.');
+  setMensajeTipo('error');
     } finally {
       setLoading(false);
     }
@@ -340,7 +320,14 @@ export default function Home() {
           </Button>
         </form>
       </div>
-      <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={closeToast} />
+      {/* Mensaje inline de éxito/error */}
+      {mensaje && (
+        <div className="mt-6 flex justify-center">
+          <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+            {mensaje}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

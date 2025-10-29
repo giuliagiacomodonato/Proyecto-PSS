@@ -44,7 +44,7 @@ export default function PagoSocio() {
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({})
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
-  const [toast, setToast] = useState<{ type: 'error' | 'success'; msg: string } | null>(null)
+  const [mensaje, setMensaje] = useState<{ tipo: 'error' | 'success'; texto: string } | null>(null)
   const [reservaData, setReservaData] = useState<ReservaData | null>(null)
   const [usuarioSocioId, setUsuarioSocioId] = useState<number | null>(null)
   const [practicasInscritas, setPracticasInscritas] = useState<PracticaInscrita[]>([])
@@ -192,23 +192,19 @@ export default function PagoSocio() {
       const res = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) {
-        setToast({ type: 'error', msg: data.error || 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
-        // limpiar campos sensibles
-        setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
-        setTimeout(() => setToast(null), 5000)
-        return
+  setMensaje({ tipo: 'error', texto: data.error || 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
+  setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
+  return
       }
       // éxito
-      setToast({ type: 'success', msg: '¡Pago realizado con éxito! Tu reserva está confirmada.' })
-      setTimeout(() => setToast(null), 5000)
+  setMensaje({ tipo: 'success', texto: '¡Pago realizado con éxito! Tu reserva está confirmada.' })
       // Limpiar sessionStorage
       sessionStorage.removeItem('reservaPendiente')
       // redirigir al panel principal del socio después de mostrar toast
       setTimeout(() => router.push('/socio'), 1500)
     } catch (err) {
-      setToast({ type: 'error', msg: 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
-      setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
-      setTimeout(() => setToast(null), 5000)
+  setMensaje({ tipo: 'error', texto: 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
+  setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
     } finally {
       setLoading(false)
     }
@@ -283,9 +279,9 @@ export default function PagoSocio() {
               Confirmar
             </button>
             
-            {toast && (
-              <div className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {toast.msg}
+            {mensaje && (
+              <div className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {mensaje.texto}
               </div>
             )}
           </div>

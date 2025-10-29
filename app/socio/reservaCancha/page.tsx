@@ -3,16 +3,10 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ReservaCancha from '../../components/ReservaCancha'
-import Toast from '../../components/Toast'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Breadcrumb from '../../components/Breadcrumb'
 import { LogOut } from 'lucide-react'
 
-interface ToastState {
-  message: string
-  type: 'success' | 'error'
-  visible: boolean
-}
 
 interface Usuario {
   id: number
@@ -23,20 +17,12 @@ interface Usuario {
 
 export default function ReservaCanchaPage() {
   const router = useRouter()
-  const [toast, setToast] = useState<ToastState>({
-    message: '',
-    type: 'success',
-    visible: false
-  })
+  const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null)
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({
-      message,
-      type,
-      visible: true
-    })
+  const showMensaje = (texto: string, tipo: 'success' | 'error' = 'success') => {
+    setMensaje({ tipo, texto })
   }
 
   useEffect(() => {
@@ -63,7 +49,7 @@ export default function ReservaCanchaPage() {
         // Verificar que sea un SOCIO
         if (usuarioData.rol !== 'SOCIO') {
           console.log('Usuario no es SOCIO:', usuarioData.rol)
-          showToast('Solo los socios pueden hacer reservas', 'error')
+          setMensaje({ tipo: 'error', texto: 'Solo los socios pueden hacer reservas' })
           setLoading(false)
           return
         }
@@ -128,19 +114,16 @@ export default function ReservaCanchaPage() {
         {usuario && (
           <ReservaCancha 
             usuarioSocioId={usuario.id}
-            onSuccess={() => showToast('Reserva realizada exitosamente', 'success')}
-            onError={(message: string) => showToast(message, 'error')}
+            onSuccess={() => setMensaje({ tipo: 'success', texto: 'Reserva realizada exitosamente' })}
+            onError={(message: string) => setMensaje({ tipo: 'error', texto: message })}
           />
         )}
       </div>
 
-      {toast.visible && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          isOpen={toast.visible}
-          onClose={() => setToast({ ...toast, visible: false })}
-        />
+      {mensaje && (
+        <div className={`fixed left-1/2 -translate-x-1/2 bottom-8 px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap z-50 ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {mensaje.texto}
+        </div>
       )}
     </>
   )

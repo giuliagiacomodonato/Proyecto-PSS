@@ -81,10 +81,6 @@ export default function ModificarCuota() {
         </div>
 
         <div className="max-w-sm bg-white p-6 rounded-lg shadow">
-          {mensaje && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-800">{mensaje}</div>
-          )}
-
           <div className="flex items-center justify-between gap-4 mb-6">
             <div className="text-sm text-gray-700">Individual</div>
             <input
@@ -105,16 +101,24 @@ export default function ModificarCuota() {
               Cancelar
             </button>
 
-            <button
-              onClick={handleGuardar}
-              disabled={!validar() || submitting}
-              className={`flex items-center gap-2 px-3 py-2 rounded ${!validar() || submitting ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-900 hover:bg-gray-400'}`}
-            >
-              <span className={`${!validar() || submitting ? 'p-1 rounded bg-gray-200' : 'p-1 rounded bg-gray-800'}`}>
-                <Check className={`${!validar() || submitting ? 'text-gray-400' : 'text-white'}`} size={16} />
-              </span>
-              <span className="text-sm font-medium">{submitting ? 'Guardando...' : 'Guardar'}</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleGuardar}
+                disabled={!validar() || submitting}
+                className={`flex items-center gap-2 px-3 py-2 rounded ${!validar() || submitting ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-900 hover:bg-gray-400'}`}
+              >
+                <span className={`${!validar() || submitting ? 'p-1 rounded bg-gray-200' : 'p-1 rounded bg-gray-800'}`}>
+                  <Check className={`${!validar() || submitting ? 'text-gray-400' : 'text-white'}`} size={16} />
+                </span>
+                <span className="text-sm font-medium">{submitting ? 'Guardando...' : 'Guardar'}</span>
+              </button>
+
+              {mensaje && (
+                <div className="p-2 bg-green-50 border border-green-200 text-green-800 text-sm font-medium rounded whitespace-nowrap">
+                  ✓ {mensaje}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>

@@ -3,10 +3,17 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } } | { params: Promise<{ id: string }> }
 ) {
   try {
-    const socioId = parseInt(params.id)
+    let idValue: string | undefined;
+    if (context.params instanceof Promise) {
+      const params = await context.params;
+      idValue = params.id;
+    } else {
+      idValue = context.params.id;
+    }
+    const socioId = parseInt(idValue ?? '')
 
     if (isNaN(socioId)) {
       return NextResponse.json(

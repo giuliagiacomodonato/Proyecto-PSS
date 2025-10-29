@@ -10,7 +10,6 @@ import { Label } from '@/app/components/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/select'
 import { Eye, EyeOff, Check, User } from 'lucide-react'
 import Sidebar from '@/app/components/Sidebar'
-import Toast from '@/app/components/Toast'
 
 interface PracticaDeportiva {
   id: number
@@ -63,18 +62,9 @@ function ModifEntrenadorContent() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info' | 'warning'>('success')
+  const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null)
 
-  useEffect(() => {
-    if (toastOpen && toastType === 'success') {
-      const timer = setTimeout(() => {
-        router.push('/admin')
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [toastOpen, toastType, router])
+
 
   useEffect(() => {
     async function fetchPracticas() {
@@ -267,9 +257,8 @@ function ModifEntrenadorContent() {
         throw new Error(data.error || 'Error al actualizar el entrenador')
       }
 
-      setToastMessage('Entrenador actualizado exitosamente')
-      setToastType('success')
-      setToastOpen(true)
+
+  setMensaje({ tipo: 'success', texto: 'Entrenador actualizado exitosamente' })
 
       setSearchDni('')
       setEntrenadorEncontrado(null)
@@ -297,9 +286,7 @@ function ModifEntrenadorContent() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al actualizar el entrenador')
-      setToastMessage(err instanceof Error ? err.message : 'Error al actualizar')
-      setToastType('error')
-      setToastOpen(true)
+  setMensaje({ tipo: 'error', texto: err instanceof Error ? err.message : 'Error al actualizar' })
     } finally {
       setLoading(false)
     }
@@ -324,8 +311,8 @@ function ModifEntrenadorContent() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={() => setToastOpen(false)} />
+
+  <Sidebar />
 
       <main className="flex-1 p-8">
         <div className="mb-8">
@@ -478,7 +465,7 @@ function ModifEntrenadorContent() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-6 mt-6 border-t">
+                <div className="flex gap-3 pt-6 mt-6 border-t items-center">
                   <Button
                     type="button"
                     variant="outline"
@@ -496,6 +483,11 @@ function ModifEntrenadorContent() {
                     <Check className="h-4 w-4" />
                     {loading ? 'Guardando...' : 'Guardar'}
                   </Button>
+                  {mensaje && (
+                    <div className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {mensaje.texto}
+                    </div>
+                  )}
                 </div>
               </div>
             </form>

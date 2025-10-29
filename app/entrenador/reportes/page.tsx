@@ -7,7 +7,6 @@ import { Button } from "@/app/components/button"
 import { Input } from "@/app/components/input"
 import { Label } from "@/app/components/label"
 import SidebarEntrenador from "@/app/components/SidebarEntrenador"
-import Toast from "@/app/components/Toast"
 
 interface Alumno {
   id: number
@@ -29,9 +28,8 @@ export default function ReportesEntrenadorPage() {
   const [filterNombre, setFilterNombre] = useState("")
   const [filterDni, setFilterDni] = useState("")
 
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState("")
-  const [toastType, setToastType] = useState<"success" | "error" | "info" | "warning">("info")
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info' | 'warning'>('info')
 
   // Verificar que sea entrenador y cargar alumnos
   useEffect(() => {
@@ -84,9 +82,8 @@ export default function ReportesEntrenadorPage() {
         setAlumnosFiltrados([])
       }
     } catch (error) {
-      setToastMessage(error instanceof Error ? error.message : "Error al cargar los alumnos")
-      setToastType("error")
-      setToastOpen(true)
+  setMensaje(error instanceof Error ? error.message : "Error al cargar los alumnos")
+  setMensajeTipo("error")
       setHayAlumnos(false)
     } finally {
       setLoading(false)
@@ -121,7 +118,7 @@ export default function ReportesEntrenadorPage() {
   return (
     <div className="flex min-h-screen bg-white">
       <SidebarEntrenador />
-      <Toast message={toastMessage} type={toastType} isOpen={toastOpen} onClose={() => setToastOpen(false)} />
+
 
       <div className="flex-1 p-8">
         <div className="mb-6 text-sm text-gray-800">Panel Principal {">"} Reportes</div>
@@ -137,6 +134,14 @@ export default function ReportesEntrenadorPage() {
             </div>
           ) : (
             <>
+              {/* Mensaje inline de éxito/error arriba de la tabla */}
+              {mensaje && (
+                <div className="mb-4 flex justify-center">
+                  <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {mensaje}
+                  </div>
+                </div>
+              )}
               {/* Filtros */}
               <div className="mb-6 grid gap-4 md:grid-cols-2">
                 <div>

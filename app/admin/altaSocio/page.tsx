@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useAdminProtection } from '@/app/hooks/useAdminProtection';
-import Toast from '../../components/Toast';
 import Sidebar from '../../components/Sidebar';
 import { User } from 'lucide-react';
 
@@ -72,15 +71,8 @@ export default function AltaSocioPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [familiarErrors, setFamiliarErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [toast, setToast] = useState<{
-      message: string;
-      type: 'success' | 'error' | 'info';
-      isOpen: boolean;
-    }>({
-      message: '',
-      type: 'info',
-      isOpen: false
-    });
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info'>('info');
 
   // Validaciones
   const validateField = (name: string, value: string): string => {
@@ -146,11 +138,8 @@ export default function AltaSocioPage() {
     // Validar que el socio principal tenga al menos 12 años
     const edadPrincipal = calcularEdad(formData.fechaNacimiento);
     if (edadPrincipal < 12) {
-      setToast({
-        message: 'El socio cabeza de familia debe tener al menos 12 años',
-        type: 'error',
-        isOpen: true
-      });
+      setMensaje('El socio cabeza de familia debe tener al menos 12 años');
+      setMensajeTipo('error');
       return;
     }
     
@@ -169,11 +158,8 @@ export default function AltaSocioPage() {
 
   const handleRemoveFamiliar = (index: number) => {
     setFamiliares(prev => prev.filter((_, i) => i !== index));
-    setToast({
-      message: 'Familiar eliminado',
-      type: 'info',
-      isOpen: true
-    });
+    setMensaje('Familiar eliminado');
+    setMensajeTipo('info');
   };
 
   const handleFamiliarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,11 +343,8 @@ export default function AltaSocioPage() {
     setFamiliares(prev => [...prev, familiarForm]);
     setShowModalFamiliar(false);
     setFamiliarErrors({});
-    setToast({
-      message: 'Familiar agregado exitosamente',
-      type: 'success',
-      isOpen: true
-    });
+    setMensaje('Familiar agregado exitosamente');
+    setMensajeTipo('success');
   };
 
   const isFormValid = () => {
@@ -395,11 +378,8 @@ export default function AltaSocioPage() {
       if (response.ok) {
         const result = await response.json();
         // Mostrar mensaje de éxito
-        setToast({
-          message: `¡Registro exitoso! ${result.socio.tipoSocio === 'FAMILIAR' ? `Se registraron ${result.socio.familiares + 1} socios` : 'Socio registrado correctamente'}`,
-          type: 'success',
-          isOpen: true
-        });
+        setMensaje(`¡Registro exitoso! ${result.socio.tipoSocio === 'FAMILIAR' ? `Se registraron ${result.socio.familiares + 1} socios` : 'Socio registrado correctamente'}`);
+        setMensajeTipo('success');
         
         // Limpiar formulario
         setFormData({
@@ -416,18 +396,12 @@ export default function AltaSocioPage() {
         setErrors({});
       } else {
         const error = await response.json();
-        setToast({
-          message: `Error: ${error.message}`,
-          type: 'error',
-          isOpen: true
-        });
+        setMensaje(`Error: ${error.message}`);
+        setMensajeTipo('error');
       }
     } catch (error) {
-      setToast({
-        message: 'Error al registrar el socio. Intente nuevamente.',
-        type: 'error',
-        isOpen: true
-      });
+      setMensaje('Error al registrar el socio. Intente nuevamente.');
+      setMensajeTipo('error');
     } finally {
       setIsLoading(false);
     }
@@ -936,12 +910,14 @@ export default function AltaSocioPage() {
         )}
 
         {/* Toast */}
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          isOpen={toast.isOpen}
-          onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
-        />
+        {/* Mensaje inline de éxito/error */}
+        {mensaje && (
+          <div className="mt-8 flex justify-center">
+            <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+              {mensaje}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
