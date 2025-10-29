@@ -47,7 +47,7 @@ export default function SidebarEntrenador() {
     {
       icon: <CheckSquare size={18} />,
       label: 'Registrar Asistencia',
-      href: '/entrenador/registrar-asistencia'
+      href: '/entrenador/asistencia'
     },
     {
       icon: <FileText size={20} />,

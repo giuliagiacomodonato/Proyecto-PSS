@@ -4,6 +4,42 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const socioId = request.nextUrl.searchParams.get('socioId')
+    const practicaId = request.nextUrl.searchParams.get('practicaId')
+
+    // Si se solicita inscripciones de una práctica específica
+    if (practicaId) {
+      const inscripciones = await prisma.inscripcion.findMany({
+        where: {
+          practicaDeportivaId: parseInt(practicaId),
+          activa: true,
+        },
+        include: {
+          usuarioSocio: {
+            select: {
+              id: true,
+              nombre: true,
+              dni: true,
+              email: true,
+            },
+          },
+          practicaDeportiva: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+        orderBy: {
+          usuarioSocio: {
+            nombre: 'asc',
+          },
+        },
+      })
+
+      return NextResponse.json({
+        inscripciones,
+      })
+    }
 
     // Obtener todas las prácticas disponibles con información de cupos
     const practicas = await prisma.practicaDeportiva.findMany({
