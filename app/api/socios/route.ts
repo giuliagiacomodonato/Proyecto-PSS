@@ -115,10 +115,10 @@ export async function POST(request: NextRequest) {
     if (socio.tipoSocio === 'FAMILIAR' && familiares && familiares.length > 0) {
       console.log(`👨‍👩‍👧‍👦 Procesando ${familiares.length} familiares para el plan ${nuevoSocio.planFamiliarId}`);
       
-      // Verificar que se hayan agregado al menos 2 familiares (3 en total con el socio principal)
-      if (familiares.length < 2) {
+      // Verificar que se hayan agregado al menos 3 familiares (4 en total con el socio principal)
+      if (familiares.length < 3) {
         return NextResponse.json(
-          { message: 'El plan familiar requiere al menos 2 integrantes adicionales (3 en total)' },
+          { message: 'El plan familiar requiere al menos 3 integrantes adicionales (4 en total)' },
           { status: 400 }
         );
       }
@@ -134,7 +134,46 @@ export async function POST(request: NextRequest) {
 
         console.log(`   ${familiarCount}. Procesando familiar: ${familiar.nombre} (Edad: ${edadFamiliar} años, Menor: ${esMenor})`);
 
-        // Verificar que el DNI del familiar no esté en uso
+
+        // Si el familiar proviene de un socio existente (marcado por el frontend con "existing" o trae un id),
+        // entonces actualizamos ese registro para convertirlo a plan familiar y asociarlo al nuevo plan.
+        if ((familiar as any).existing || (familiar as any).id) {
+          const existingId = (familiar as any).id;
+          console.log(`   Procesando socio existente (ID: ${existingId}) como familiar`);
+
+          // Buscar el socio existente por id
+          const socioParaConvertir = await prisma.usuario.findFirst({ where: { id: existingId } });
+
+          if (!socioParaConvertir) {
+            return NextResponse.json(
+              { message: `No se encontró el socio existente con id ${existingId}` },
+              { status: 400 }
+            );
+          }
+
+          // Si ya pertenece a un plan familiar, rechazar
+          if (socioParaConvertir.tipoSocio === 'FAMILIAR') {
+            return NextResponse.json(
+              { message: `El socio con DNI ${socioParaConvertir.dni} ya pertenece a un plan familiar` },
+              { status: 400 }
+            );
+          }
+
+          // Actualizar el socio existente para convertirlo a FAMILIAR y asociarlo al nuevo plan
+          await prisma.usuario.update({
+            where: { id: existingId },
+            data: {
+              tipoSocio: 'FAMILIAR',
+              planFamiliarId: nuevoSocio.planFamiliarId,
+              familiarId: nuevoSocio.id
+            }
+          });
+
+          console.log(`   ✅ Socio existente (ID: ${existingId}) convertido y asociado al plan ${nuevoSocio.planFamiliarId}`);
+          continue; // pasar al siguiente familiar
+        }
+
+        // Verificar que el DNI del familiar nuevo no esté en uso
         const dniFamiliarExistente = await prisma.usuario.findFirst({
           where: { dni: familiar.dni }
         });
@@ -319,8 +358,8 @@ export async function PATCH(request: NextRequest) {
       planFamiliarId: socioExistente.planFamiliarId
     });
 
-    // Si se está cambiando de FAMILIAR a INDIVIDUAL
-    if (tipoSocio === 'INDIVIDUAL' && socioExistente.tipoSocio === 'FAMILIAR' && socioExistente.planFamiliarId) {
+  // Si se está cambiando de FAMILIAR a INDIVIDUAL
+  if (tipoSocio === 'INDIVIDUAL' && socioExistente.tipoSocio === 'FAMILIAR' && socioExistente.planFamiliarId) {
       console.log('Buscando integrantes del plan familiar:', socioExistente.planFamiliarId);
       
       // Contar cuántos socios quedarían en el plan familiar (sin contar al que se está modificando)
@@ -337,7 +376,106 @@ export async function PATCH(request: NextRequest) {
           esMenorDe12: true
         }
       });
-      
+
+      // Si se está cambiando de INDIVIDUAL a FAMILIAR -> esperamos un campo 'familiares' en el body
+      if (tipoSocio === 'FAMILIAR' && socioExistente.tipoSocio === 'INDIVIDUAL') {
+        const familiaresFromBody = (body as any).familiares as any[] | undefined;
+        // Requerir al menos 3 familiares adicionales
+        if (!familiaresFromBody || familiaresFromBody.length < 3) {
+          return NextResponse.json(
+            { message: 'Para convertir a un socio a FAMILIAR se requieren al menos 3 DNI de miembros adicionales' },
+            { status: 400 }
+          );
+        }
+
+        // Generar un planFamiliarId para todo el grupo
+        const nuevoPlanFamiliarId = `PF-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+        // Actualizar el socio existente para convertirlo en cabeza de familia
+        await prisma.usuario.update({
+          where: { id },
+          data: {
+            tipoSocio: 'FAMILIAR',
+            planFamiliarId: nuevoPlanFamiliarId,
+            familiarId: null
+          }
+        });
+
+        // Procesar cada familiar enviado
+        const sociosConvertidosLocal: string[] = [];
+        for (const fam of familiaresFromBody) {
+          // Si el frontend marcó existing/id -> convertir
+          if (fam.existing || fam.id) {
+            const existingId = fam.id;
+            const socioParaConvertir = await prisma.usuario.findFirst({ where: { id: existingId } });
+            if (!socioParaConvertir) {
+              return NextResponse.json({ message: `No se encontró el socio existente con id ${existingId}` }, { status: 400 });
+            }
+            if (socioParaConvertir.tipoSocio === 'FAMILIAR') {
+              return NextResponse.json({ message: `El socio con DNI ${socioParaConvertir.dni} ya pertenece a un plan familiar` }, { status: 400 });
+            }
+
+            await prisma.usuario.update({
+              where: { id: existingId },
+              data: {
+                tipoSocio: 'FAMILIAR',
+                planFamiliarId: nuevoPlanFamiliarId,
+                familiarId: id
+              }
+            });
+            sociosConvertidosLocal.push(`${socioParaConvertir.nombre} (DNI: ${socioParaConvertir.dni}) - Convertido a FAMILIAR`);
+            continue;
+          }
+
+          // Si no existe en DB, crear nuevo familiar
+          // Validar que DNI no esté en uso
+          const dniFamiliarExistente = await prisma.usuario.findFirst({ where: { dni: fam.dni } });
+          if (dniFamiliarExistente) {
+            return NextResponse.json({ message: `El DNI ${fam.dni} ya está registrado` }, { status: 400 });
+          }
+
+          const edadFamiliar = fam.fechaNacimiento ? (() => {
+            const hoy = new Date();
+            const nacimiento = new Date(fam.fechaNacimiento);
+            let edad = hoy.getFullYear() - nacimiento.getFullYear();
+            const mes = hoy.getMonth() - nacimiento.getMonth();
+            if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+            return edad;
+          })() : 100;
+
+          const esMenor = edadFamiliar < 12;
+
+          // Si es menor, usar email/telefono del cabeza (recuperar cabeza actualizado)
+          const cabeza = await prisma.usuario.findUnique({ where: { id } });
+
+          const familiarData: any = {
+            rol: 'SOCIO',
+            nombre: fam.nombre,
+            dni: fam.dni,
+            fechaNacimiento: fam.fechaNacimiento ? new Date(fam.fechaNacimiento) : new Date(),
+            email: esMenor ? (cabeza?.email ?? '') : fam.email,
+            telefono: esMenor ? (cabeza?.telefono ?? '') : fam.telefono,
+            tipoSocio: 'FAMILIAR',
+            planFamiliarId: nuevoPlanFamiliarId,
+            familiarId: id,
+            esMenorDe12: esMenor,
+            fechaAlta: new Date()
+          };
+
+          if (!esMenor && fam.contraseña) {
+            familiarData.contraseña = await bcrypt.hash(fam.contraseña, 10);
+          } else {
+            familiarData.contraseña = null;
+          }
+
+          const nuevoFamiliar = await prisma.usuario.create({ data: familiarData });
+          sociosConvertidosLocal.push(`${nuevoFamiliar.nombre} (DNI: ${nuevoFamiliar.dni}) - Nuevo familiar creado`);
+        }
+
+        mensaje = `Socio convertido a FAMILIAR y se procesaron ${sociosConvertidosLocal.length} integrante(s)`;
+        sociosConvertidos = sociosConvertidosLocal;
+      }
+
       console.log('Integrantes restantes después de sacar este socio:', integrantesPlanFamiliar.length);
 
       // Si quedan menos de 3 integrantes (porque uno se va), convertir a todos a INDIVIDUAL

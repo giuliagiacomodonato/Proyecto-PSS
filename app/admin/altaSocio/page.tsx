@@ -330,16 +330,54 @@ export default function AltaSocioPage() {
     try {
       const response = await fetch(`/api/socios?dni=${familiarForm.dni}`);
       const data = await response.json();
-      
+
       if (data.existe) {
-        setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI ya está registrado en el sistema' }));
-        return;
+        const socioExistente = data.socio;
+
+        // Si ya pertenece a un plan familiar, no se puede agregar
+        if (socioExistente.tipoSocio === 'FAMILIAR') {
+          setFamiliarErrors(prev => ({ ...prev, dni: 'El socio ingresado ya pertenece a un grupo familiar' }));
+          return;
+        }
+
+        // Si está registrado con plan individual, preguntar si se desea convertirlo
+        if (socioExistente.tipoSocio === 'INDIVIDUAL') {
+          const confirmar = typeof window !== 'undefined' && window.confirm(
+            `El socio con DNI ${socioExistente.dni} ya está registrado como INDIVIDUAL. ¿Desea convertir su plan a FAMILIAR y agregarlo al grupo?`
+          );
+
+          if (!confirmar) {
+            // No se agrega ni se modifica nada
+            return;
+          }
+
+          // Agregar un entry que indica que se usará el socio existente (el servidor procesará la conversión)
+          const existingEntry: any = {
+            id: socioExistente.id,
+            nombre: socioExistente.nombre,
+            dni: socioExistente.dni,
+            fechaNacimiento: socioExistente.fechaNacimiento,
+            email: socioExistente.email,
+            telefono: socioExistente.telefono,
+            esMenorDe12: socioExistente.esMenorDe12,
+            // marcador para el backend de que es un socio ya existente
+            existing: true
+          };
+
+          setFamiliares(prev => [...prev, existingEntry as unknown as FamiliarData]);
+          setShowModalFamiliar(false);
+          setFamiliarErrors({});
+          setMensaje('Socio existente agregado al grupo familiar y marcado para conversión');
+          setMensajeTipo('success');
+          return;
+        }
       }
     } catch (error) {
       console.error('Error al verificar DNI:', error);
       // Continuar si hay error en la verificación
     }
 
+    // Si no existe en la DB, agregar como nuevo familiar normal
     setFamiliares(prev => [...prev, familiarForm]);
     setShowModalFamiliar(false);
     setFamiliarErrors({});
@@ -353,7 +391,8 @@ export default function AltaSocioPage() {
     const hasEmptyFields = requiredFields.some(field => !formData[field as keyof SocioFormData]);
     
     if (formData.tipoSocio === 'FAMILIAR') {
-      return !hasErrors && !hasEmptyFields && familiares.length >= 2;
+      // Requerir al menos 3 familiares adicionales (4 en total con cabeza de familia)
+      return !hasErrors && !hasEmptyFields && familiares.length >= 3;
     }
     
     return !hasErrors && !hasEmptyFields;
@@ -635,7 +674,7 @@ export default function AltaSocioPage() {
                     </button>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Se requieren al menos 2 integrantes adicionales para el plan familiar (3 en total)
+                    Se requieren al menos 3 integrantes adicionales para el plan familiar (4 en total)
                   </p>
                   
                   {/* Lista de familiares agregados */}

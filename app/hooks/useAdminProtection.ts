@@ -17,6 +17,7 @@ export function useAdminProtection() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -35,8 +36,8 @@ export function useAdminProtection() {
 
         const usuarioObj: Usuario = JSON.parse(usuarioGuardado);
 
-        // Validar que sea ADMIN
-        if (usuarioObj.rol !== 'ADMIN') {
+        // Validar que sea ADMIN o SUPER_ADMIN
+        if (usuarioObj.rol !== 'ADMIN' && usuarioObj.rol !== 'SUPER_ADMIN') {
           console.warn(
             `⚠️ Acceso denegado: Usuario con rol ${usuarioObj.rol} no es administrador`
           );
@@ -46,9 +47,10 @@ export function useAdminProtection() {
           return;
         }
 
-        console.log('✅ Acceso permitido - Usuario ADMIN autenticado');
+        console.log('✅ Acceso permitido - Usuario ADMIN/SUPER_ADMIN autenticado');
         setUsuario(usuarioObj);
         setIsAuthorized(true);
+        setIsSuperAdmin(usuarioObj.rol === 'SUPER_ADMIN');
         setIsChecking(false);
       } catch (error) {
         console.error('❌ Error al verificar acceso:', error);
@@ -60,5 +62,5 @@ export function useAdminProtection() {
     verificarAcceso();
   }, [router]);
 
-  return { isAuthorized, usuario, isChecking };
+  return { isAuthorized, usuario, isChecking, isSuperAdmin };
 }

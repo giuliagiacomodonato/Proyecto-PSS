@@ -74,8 +74,10 @@ const Label: React.FC<LabelProps> = ({ htmlFor, children, className = '' }) => (
 
 
 // Mapeo de Rol a Ruta de Dashboard (Criterio: redirigir a su respectivo dashboard)
+// Incluir SUPER_ADMIN y mapearlo al mismo dashboard de ADMIN
 const REDIRECTION_MAP = {
   ADMIN: '/admin',
+  SUPER_ADMIN: '/admin',
   ENTRENADOR: '/entrenador',
   SOCIO: '/socio',
 };
@@ -92,7 +94,8 @@ export default function Home() {
   // Nota: Si estás ejecutando esto en Next.js localmente, este mock no se usa, usa el router real.
   const router = useRouter(); 
 
-  type Role = 'ADMIN' | 'ENTRENADOR' | 'SOCIO'
+  // Añadimos SUPER_ADMIN para que el frontend acepte el nuevo rol del backend
+  type Role = 'ADMIN' | 'SUPER_ADMIN' | 'ENTRENADOR' | 'SOCIO'
   type FormData = { email: string; contraseña: string }
   type Errors = Partial<Record<keyof FormData, string>>
 

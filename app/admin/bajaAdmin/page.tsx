@@ -20,7 +20,14 @@ interface Administrador {
 export default function BajaAdminPage() {
   const router = useRouter()
   // ✅ Verificar que sea admin ANTES de renderizar
-  const { isAuthorized, isChecking } = useAdminProtection()
+  const { isAuthorized, isChecking, isSuperAdmin } = useAdminProtection()
+
+  // Si se verificó la sesión y el usuario no es super-admin, redirigir al dashboard
+  useEffect(() => {
+    if (!isChecking && isAuthorized && !isSuperAdmin) {
+      router.replace('/admin')
+    }
+  }, [isChecking, isAuthorized, isSuperAdmin, router])
 
   const [dni, setDni] = useState('')
   const [fechaBaja, setFechaBaja] = useState('')
@@ -186,6 +193,15 @@ export default function BajaAdminPage() {
 
   // ✅ No renderizar nada si no está autorizado
   if (!isAuthorized) {
+    return null
+  }
+
+  // Solo super-admin puede acceder a esta página
+  if (!isSuperAdmin) {
+    // Redirigir a dashboard admin
+    useEffect(() => {
+      router.replace('/admin')
+    }, [router])
     return null
   }
 

@@ -15,6 +15,7 @@ datasource db {
 
 // Enum para los roles de usuario
 enum RolUsuario {
+  SUPER_ADMIN
   ADMIN
   SOCIO
   ENTRENADOR

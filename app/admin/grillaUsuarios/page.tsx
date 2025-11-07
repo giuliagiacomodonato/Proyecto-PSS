@@ -154,34 +154,44 @@ export default function GrillaUsuariosPage() {
 							<table className="w-full text-left table-fixed">
 								<thead>
 									<tr className="text-sm text-gray-600">
-										<th className="w-1/2 py-2">Nombre Completo</th>
-										<th className="w-1/6 py-2">DNI</th>
-										<th className="w-1/6 py-2">Rol</th>
-										<th className="w-1/6 py-2">Acciones</th>
+										<th className="w-2/5 py-2">Nombre Completo</th>
+										<th className="w-1/12 py-2">DNI</th>
+										<th className="w-1/12 py-2">Rol</th>
+										<th className="w-1/12 py-2">Reservar</th>
+										<th className="w-1/12 py-2">Pagos</th>
+										<th className="w-1/12 py-2">Modificar</th>
+										<th className="w-1/12 py-2">Eliminar</th>
 									</tr>
 								</thead>
 								<tbody>
 									{usuarios.map((u) => (
 										<tr key={u.id} className="border-t">
-											<td className="py-3 text-sm text-gray-800">{u.nombre}</td>
-											<td className="py-3 text-sm text-gray-600">{u.dni}</td>
+											<td className="py-3 text-sm text-gray-800 truncate" title={u.nombre}>{u.nombre}</td>
+											<td className="py-3 text-sm text-gray-600 truncate" title={u.dni}>{u.dni}</td>
 											<td className="py-3 text-sm text-gray-600">{u.rol.toLowerCase()}</td>
+											<td className="py-3 text-sm">
+												<button className="text-blue-600">Reservar</button>
+											</td>
+											<td className="py-3 text-sm">
+												<button className="text-blue-600">Pagos</button>
+											</td>
 											<td className="py-3 text-sm">
 												{/* Modificar: redirigir a la página correspondiente pasando dni */}
 												{u.rol === 'ADMIN' && (
-													<Link href={`/admin/modificarAdmin?dni=${u.dni}`} className="text-blue-600 mr-4">Modificar</Link>
+													<Link href={`/admin/modificarAdmin?dni=${u.dni}`} className="text-blue-600">Modificar</Link>
 												)}
-																		{u.rol === 'ENTRENADOR' && (
-																			<Link href={`/admin/modifEntrenador?dni=${u.dni}`} onClick={() => {
-																				try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
-																			}} className="text-blue-600 mr-4">Modificar</Link>
-																		)}
-																		{u.rol === 'SOCIO' && (
-																			<Link href={`/admin/modifSocio?dni=${u.dni}`} onClick={() => {
-																				try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
-																			}} className="text-blue-600 mr-4">Modificar</Link>
-																		)}
-
+												{u.rol === 'ENTRENADOR' && (
+													<Link href={`/admin/modifEntrenador?dni=${u.dni}`} onClick={() => {
+														try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
+													}} className="text-blue-600">Modificar</Link>
+												)}
+												{u.rol === 'SOCIO' && (
+													<Link href={`/admin/modifSocio?dni=${u.dni}`} onClick={() => {
+														try { sessionStorage.setItem('returnTo', '/admin/grillaUsuarios') } catch (e) {}
+													}} className="text-blue-600">Modificar</Link>
+												)}
+											</td>
+											<td className="py-3 text-sm">
 												<button onClick={() => handleEliminar(u.dni)} className="text-red-600">Eliminar</button>
 											</td>
 										</tr>
