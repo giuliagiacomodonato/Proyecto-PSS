@@ -358,27 +358,12 @@ export async function PATCH(request: NextRequest) {
       planFamiliarId: socioExistente.planFamiliarId
     });
 
-  // Si se está cambiando de FAMILIAR a INDIVIDUAL
-  if (tipoSocio === 'INDIVIDUAL' && socioExistente.tipoSocio === 'FAMILIAR' && socioExistente.planFamiliarId) {
-      console.log('Buscando integrantes del plan familiar:', socioExistente.planFamiliarId);
-      
-      // Contar cuántos socios quedarían en el plan familiar (sin contar al que se está modificando)
-      const integrantesPlanFamiliar = await prisma.usuario.findMany({
-        where: {
-          planFamiliarId: socioExistente.planFamiliarId,
-          rol: 'SOCIO',
-          id: { not: id } // Excluir el socio que se está modificando
-        },
-        select: {
-          id: true,
-          nombre: true,
-          dni: true,
-          esMenorDe12: true
-        }
-      });
-
-      // Si se está cambiando de INDIVIDUAL a FAMILIAR -> esperamos un campo 'familiares' en el body
-      if (tipoSocio === 'FAMILIAR' && socioExistente.tipoSocio === 'INDIVIDUAL') {
+    // Si se está cambiando de INDIVIDUAL a FAMILIAR O si ya es FAMILIAR pero no tiene planFamiliarId
+    // -> esperamos un campo 'familiares' en el body
+    if (
+      (tipoSocio === 'FAMILIAR' && socioExistente.tipoSocio === 'INDIVIDUAL') ||
+      (tipoSocio === 'FAMILIAR' && socioExistente.tipoSocio === 'FAMILIAR' && !socioExistente.planFamiliarId)
+    ) {
         const familiaresFromBody = (body as any).familiares as any[] | undefined;
         // Requerir al menos 3 familiares adicionales
         if (!familiaresFromBody || familiaresFromBody.length < 3) {
@@ -453,8 +438,8 @@ export async function PATCH(request: NextRequest) {
             nombre: fam.nombre,
             dni: fam.dni,
             fechaNacimiento: fam.fechaNacimiento ? new Date(fam.fechaNacimiento) : new Date(),
-            email: esMenor ? (cabeza?.email ?? '') : fam.email,
-            telefono: esMenor ? (cabeza?.telefono ?? '') : fam.telefono,
+            email: esMenor ? (cabeza?.email ?? '') : (fam.email || ''),
+            telefono: esMenor ? (cabeza?.telefono ?? '') : (fam.telefono || ''),
             tipoSocio: 'FAMILIAR',
             planFamiliarId: nuevoPlanFamiliarId,
             familiarId: id,
@@ -474,7 +459,26 @@ export async function PATCH(request: NextRequest) {
 
         mensaje = `Socio convertido a FAMILIAR y se procesaron ${sociosConvertidosLocal.length} integrante(s)`;
         sociosConvertidos = sociosConvertidosLocal;
-      }
+    }
+
+    // Si se está cambiando de FAMILIAR a INDIVIDUAL
+    else if (tipoSocio === 'INDIVIDUAL' && socioExistente.tipoSocio === 'FAMILIAR' && socioExistente.planFamiliarId) {
+      console.log('Buscando integrantes del plan familiar:', socioExistente.planFamiliarId);
+      
+      // Contar cuántos socios quedarían en el plan familiar (sin contar al que se está modificando)
+      const integrantesPlanFamiliar = await prisma.usuario.findMany({
+        where: {
+          planFamiliarId: socioExistente.planFamiliarId,
+          rol: 'SOCIO',
+          id: { not: id } // Excluir el socio que se está modificando
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          esMenorDe12: true
+        }
+      });
 
       console.log('Integrantes restantes después de sacar este socio:', integrantesPlanFamiliar.length);
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense } from 'react';
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminProtection } from '@/app/hooks/useAdminProtection';
 import Sidebar from '@/app/components/Sidebar';
 import { User } from 'lucide-react';
@@ -17,6 +17,19 @@ type Socio = {
   direccion: string;
   tipoSocio: 'INDIVIDUAL' | 'FAMILIAR';
   esMenorDe12: boolean;
+  planFamiliarId?: string | null;
+};
+
+type FamiliarInput = {
+  id?: number;
+  existing?: boolean;
+  dni?: string;
+  nombre?: string;
+  fechaNacimiento?: string;
+  email?: string;
+  contraseña?: string;
+  telefono?: string;
+  error?: string;
 };
 
 function ModificarSocioContent() {
@@ -29,15 +42,22 @@ function ModificarSocioContent() {
   const [editSocio, setEditSocio] = useState<Socio | null>(null);
   const [mensaje, setMensaje] = useState('');
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
-  // Estado para la adición de familiares cuando se convierte INDIVIDUAL -> FAMILIAR
-  const [familiaresInput, setFamiliaresInput] = useState<Array<any>>([]);
-  // Estado para miembros guardados
-  const [miembrosGuardados, setMiembrosGuardados] = useState<Array<any>>([]);
-  // Guardar miembros familiares en estado aparte
+  const [familiaresInput, setFamiliaresInput] = useState<FamiliarInput[]>([]);
+  const [miembrosGuardados, setMiembrosGuardados] = useState<FamiliarInput[]>([]);
+
   const handleGuardarMiembros = () => {
-    // Solo guardar los miembros válidos
-    const miembrosValidos = familiaresInput.filter((f) => f && !f.error && (f.existing || (f.dni && f.nombre && f.fechaNacimiento)));
+    const miembrosValidos = familiaresInput.filter(
+      (f) =>
+        f &&
+        !f.error &&
+        (f.existing || (f.dni && f.dni.trim() && f.nombre && f.fechaNacimiento))
+    );
     setMiembrosGuardados(miembrosValidos);
+    if (miembrosValidos.length === 0) {
+      setMensaje('No hay miembros válidos para guardar. Complete los datos requeridos.');
+    } else {
+      setMensaje('Miembros guardados correctamente.');
+    }
   };
 
   const buscarSocio = async (dniArg?: string) => {
@@ -79,17 +99,25 @@ function ModificarSocioContent() {
         telefono: socioEncontrado.telefono ?? '',
         direccion: socioEncontrado.direccion ?? '',
         esMenorDe12: socioEncontrado.esMenorDe12 ?? false,
+        planFamiliarId: socioEncontrado.planFamiliarId ?? null,
       };
 
       setSocio(normalizado);
       setEditSocio(normalizado);
+      
+      // Si es FAMILIAR sin planFamiliarId, inicializar inputs de familiares
+      if (normalizado.tipoSocio === 'FAMILIAR' && !normalizado.planFamiliarId) {
+        setFamiliaresInput([{ dni: '' }, { dni: '' }, { dni: '' }]);
+      } else {
+        setFamiliaresInput([]);
+      }
+      setMiembrosGuardados([]);
     } catch (error) {
       console.error('Error al buscar socio:', error);
       setMensaje('Error al buscar el socio.');
     }
   };
 
-  // Auto-buscar si la URL tiene ?dni=...
   useEffect(() => {
     if (isChecking) return;
     if (!isAuthorized) return;
@@ -99,6 +127,7 @@ function ModificarSocioContent() {
       buscarSocio(dniParam);
     }
   }, [isChecking, isAuthorized, searchParams]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editSocio) return;
     setEditSocio({ ...editSocio, [e.target.name]: e.target.value });
@@ -107,30 +136,26 @@ function ModificarSocioContent() {
   const handleTipoChange = (tipo: 'Individual' | 'Familiar') => {
     if (!editSocio) return;
     const nuevoTipo = tipo === 'Individual' ? 'INDIVIDUAL' : 'FAMILIAR';
-    setEditSocio({
-      ...editSocio,
-      tipoSocio: nuevoTipo,
-    });
+    setEditSocio({ ...editSocio, tipoSocio: nuevoTipo });
 
-    // Si se selecciona FAMILIAR y el socio original era INDIVIDUAL, inicializar inputs de familiares
     if (nuevoTipo === 'FAMILIAR' && socio && socio.tipoSocio === 'INDIVIDUAL') {
-      // inicializamos con 3 filas vacías por defecto
       setFamiliaresInput([{ dni: '' }, { dni: '' }, { dni: '' }]);
+      setMiembrosGuardados([]);
+    } else if (nuevoTipo === 'INDIVIDUAL') {
+      setFamiliaresInput([]);
+      setMiembrosGuardados([]);
     }
   };
 
   const validar = () => {
     const errs: { [key: string]: string } = {};
     if (editSocio) {
-      // Email es requerido y debe ser válido
       if (!editSocio.email || !editSocio.email.includes('@')) {
         errs.email = 'Correo inválido o requerido';
       }
-      // Teléfono no es requerido, pero si se proporciona debe ser válido
-      if (editSocio.telefono && !/^\d*$/.test(editSocio.telefono)) {
+      if (editSocio.telefono && !/^[0-9]+$/.test(editSocio.telefono)) {
         errs.telefono = 'Teléfono debe contener solo números';
       }
-      // Dirección no es requerida
     }
     setErrores(errs);
     return Object.keys(errs).length === 0;
@@ -138,17 +163,29 @@ function ModificarSocioContent() {
 
   const handleGuardar = async () => {
     if (!validar() || !editSocio) return;
-    // Si estamos convirtiendo INDIVIDUAL -> FAMILIAR, validar que hay al menos 3 miembros válidos
-    const convertingToFamiliar = socio && socio.tipoSocio === 'INDIVIDUAL' && editSocio.tipoSocio === 'FAMILIAR';
-    if (convertingToFamiliar) {
-      const validCount = familiaresInput.filter((f) => f && !f.error && (f.existing || (f.dni && f.nombre && f.fechaNacimiento))).length;
+
+    // Detectar si necesitamos enviar familiares:
+    // 1. Conversión de INDIVIDUAL a FAMILIAR
+    // 2. Ya es FAMILIAR pero no tiene planFamiliarId (necesita ser completado)
+    const needsFamiliares =
+      (socio && socio.tipoSocio === 'INDIVIDUAL' && editSocio.tipoSocio === 'FAMILIAR') ||
+      (socio && socio.tipoSocio === 'FAMILIAR' && !socio.planFamiliarId && editSocio.tipoSocio === 'FAMILIAR');
+
+    if (needsFamiliares) {
+      const validCount = miembrosGuardados.filter(
+        (f) =>
+          f &&
+          !f.error &&
+          (f.existing || (f.dni && f.dni.trim() && f.nombre && f.fechaNacimiento))
+      ).length;
       if (validCount < 3) {
-        setMensaje('Para convertir a FAMILIAR se requieren 3 integrantes válidos (buscados o nuevos).');
+        setMensaje('Para el plan FAMILIAR se requieren 3 integrantes válidos (buscados o nuevos).');
         return;
       }
     }
+
     try {
-      const bodyToSend: any = {
+      const bodyToSend: Record<string, any> = {
         id: editSocio.id,
         email: editSocio.email,
         telefono: editSocio.telefono,
@@ -156,16 +193,18 @@ function ModificarSocioContent() {
         tipoSocio: editSocio.tipoSocio,
       };
 
-      if (convertingToFamiliar) {
-        // Mapear familiaresInput a la estructura esperada por el backend
-        bodyToSend.familiares = familiaresInput.map((f) => {
-          if (f.existing && f.id) return { existing: true, id: f.id };
+      if (needsFamiliares) {
+        bodyToSend.familiares = miembrosGuardados.map((f) => {
+          if (f.existing && f.id) {
+            return { existing: true, id: f.id };
+          }
           return {
             dni: f.dni,
             nombre: f.nombre || '',
             fechaNacimiento: f.fechaNacimiento || '',
             email: f.email || '',
-            contraseña: f.contraseña || ''
+            telefono: f.telefono || '',
+            contraseña: f.contraseña || '',
           };
         });
       }
@@ -177,23 +216,26 @@ function ModificarSocioContent() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Error desconocido' }));
-        console.error('Error del servidor:', errorData);
+        let errorData = { message: 'Error desconocido' } as { message: string };
+        try {
+          errorData = await res.json();
+        } catch (err) {
+          console.error('Error parseando respuesta del servidor:', err);
+        }
         setMensaje(errorData.message || 'No se pudo actualizar el socio.');
         return;
       }
 
       const result = await res.json();
 
-      // Construir el mensaje con información de socios convertidos si aplica
       let mensajeFinal = result.message;
       if (result.sociosConvertidos && result.sociosConvertidos.length > 0) {
-        mensajeFinal += `\n\nSocios convertidos a INDIVIDUAL:\n${result.sociosConvertidos.join('\n')}`;
+        mensajeFinal += `\n\nSocios convertidos/creados:\n${result.sociosConvertidos.join('\n')}`;
       }
 
       setMensaje(mensajeFinal);
       setSocio(editSocio);
-      // Si venimos desde la grilla, redirigir de vuelta
+
       try {
         if (typeof window !== 'undefined') {
           const returnTo = sessionStorage.getItem('returnTo');
@@ -202,8 +244,8 @@ function ModificarSocioContent() {
             router.push(returnTo);
           }
         }
-      } catch (e) {
-        // ignore
+      } catch (err) {
+        console.error('Error durante la redirección:', err);
       }
     } catch (error) {
       console.error('Error al actualizar socio:', error);
@@ -215,12 +257,20 @@ function ModificarSocioContent() {
     setEditSocio(socio);
     setMensaje('');
     setErrores({});
+    setFamiliaresInput([]);
+    setMiembrosGuardados([]);
   };
 
-  // Helpers para gestionar inputs de familiares en la conversión a FAMILIAR
   const addFamiliar = () => setFamiliaresInput((prev) => [...prev, { dni: '' }]);
-  const removeFamiliar = (index: number) => setFamiliaresInput((prev) => prev.filter((_, i) => i !== index));
-  const updateFamiliarField = (index: number, field: string, value: any) => {
+
+  const removeFamiliar = (index: number) =>
+    setFamiliaresInput((prev) => prev.filter((_, i) => i !== index));
+
+  const updateFamiliarField = (
+    index: number,
+    field: keyof FamiliarInput,
+    value: string | boolean | number | undefined
+  ) => {
     setFamiliaresInput((prev) => {
       const copy = [...prev];
       copy[index] = { ...(copy[index] || {}), [field]: value };
@@ -234,17 +284,19 @@ function ModificarSocioContent() {
       updateFamiliarField(index, 'error', 'Ingrese DNI antes de buscar');
       return;
     }
+
     try {
       updateFamiliarField(index, 'error', undefined);
       const res = await fetch(`/api/socios?dni=${encodeURIComponent(dni)}`);
       const data = await res.json();
+
       if (!res.ok || !data) {
-        // no existe -> permitir completar datos manualmente
         updateFamiliarField(index, 'existing', false);
         updateFamiliarField(index, 'nombre', '');
         updateFamiliarField(index, 'fechaNacimiento', '');
         updateFamiliarField(index, 'email', '');
-        updateFamiliarField(index, 'error', undefined);
+        updateFamiliarField(index, 'telefono', '');
+        updateFamiliarField(index, 'contraseña', '');
         return;
       }
 
@@ -254,23 +306,23 @@ function ModificarSocioContent() {
           updateFamiliarField(index, 'error', 'El DNI ingresado ya pertenece a un plan familiar');
           return;
         }
-        // existente pero INDIVIDUAL -> marcar para conversión
         updateFamiliarField(index, 'existing', true);
         updateFamiliarField(index, 'id', socioEncontrado.id);
         updateFamiliarField(index, 'nombre', socioEncontrado.nombre || '');
         updateFamiliarField(index, 'fechaNacimiento', socioEncontrado.fechaNacimiento?.slice(0, 10) || '');
         updateFamiliarField(index, 'email', socioEncontrado.email || '');
-        updateFamiliarField(index, 'error', undefined);
+        updateFamiliarField(index, 'telefono', socioEncontrado.telefono || '');
+        updateFamiliarField(index, 'contraseña', '');
       } else {
-        // no existe
         updateFamiliarField(index, 'existing', false);
         updateFamiliarField(index, 'nombre', '');
         updateFamiliarField(index, 'fechaNacimiento', '');
         updateFamiliarField(index, 'email', '');
-        updateFamiliarField(index, 'error', undefined);
+        updateFamiliarField(index, 'telefono', '');
+        updateFamiliarField(index, 'contraseña', '');
       }
-    } catch (err) {
-      console.error('Error buscando socio por DNI:', err);
+    } catch (error) {
+      console.error('Error buscando socio por DNI:', error);
       updateFamiliarField(index, 'error', 'Error al buscar DNI');
     }
   };
@@ -294,7 +346,6 @@ function ModificarSocioContent() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <main className="flex-1 p-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
@@ -303,12 +354,9 @@ function ModificarSocioContent() {
               <span className="text-sm">Usuario Admin</span>
             </div>
           </div>
-
-          {/* Breadcrumb */}
           <div className="text-sm text-gray-500 mb-6">
             Panel Principal &gt; Socios &gt; Modificar Socio
           </div>
-
           <h2 className="text-2xl font-semibold text-gray-800">Modificar Socio</h2>
         </div>
 
@@ -328,29 +376,38 @@ function ModificarSocioContent() {
               Buscar
             </button>
           </div>
+
           {mensaje && (
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-blue-800 whitespace-pre-line">{mensaje}</p>
             </div>
           )}
+
           {editSocio && (
             <>
               {editSocio.esMenorDe12 && (
                 <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-yellow-800">
-                    <strong>⚠️ Menor de 12 años:</strong> Este socio no puede ser modificado. Los menores de 12 años no tienen cuenta en el sistema y sus datos solo pueden ser gestionados por el cabeza de familia.
+                    <strong>Atención: Menor de 12 años.</strong> Este socio no puede ser modificado. Los menores de 12 años no tienen cuenta en el sistema y sus datos solo pueden ser gestionados por el cabeza de familia.
                   </p>
                 </div>
               )}
 
-              {/* Si estamos convirtiendo de INDIVIDUAL a FAMILIAR, pedir los 3 DNIs (o más) */}
-              {editSocio && socio && socio.tipoSocio === 'INDIVIDUAL' && editSocio.tipoSocio === 'FAMILIAR' && (
+              {editSocio && socio && (
+                (socio.tipoSocio === 'INDIVIDUAL' && editSocio.tipoSocio === 'FAMILIAR') ||
+                (socio.tipoSocio === 'FAMILIAR' && !socio.planFamiliarId && editSocio.tipoSocio === 'FAMILIAR')
+              ) && (
                 <div className="mt-6 p-4 border rounded bg-gray-50">
                   <h3 className="text-sm font-medium mb-2">Miembros del grupo familiar (mínimo 3)</h3>
-                  <p className="text-sm text-gray-600 mb-3">Para convertir este socio a plan familiar, ingrese al menos 3 miembros (DNI). Use Buscar para detectar si el socio ya existe.</p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Para convertir este socio a plan familiar, ingrese al menos 3 miembros (DNI). Use Buscar para detectar si el socio ya existe.
+                  </p>
 
                   {familiaresInput.map((f, idx) => (
-                    <div key={idx} className="mb-3 p-2 bg-white rounded border flex flex-col md:flex-row md:items-center gap-2">
+                    <div
+                      key={idx}
+                      className="mb-3 p-2 bg-white rounded border flex flex-col md:flex-row md:items-center gap-2"
+                    >
                       <div className="flex items-center gap-2 w-full md:w-1/3">
                         <input
                           type="text"
@@ -359,13 +416,27 @@ function ModificarSocioContent() {
                           onChange={(e) => updateFamiliarField(idx, 'dni', e.target.value)}
                           className="w-full px-3 py-2 border rounded"
                         />
-                        <button type="button" onClick={() => buscarFamiliar(idx)} className="px-3 py-2 bg-blue-500 text-white rounded">Buscar</button>
-                        <button type="button" onClick={() => removeFamiliar(idx)} className="px-3 py-2 bg-red-100 text-red-700 rounded">Eliminar</button>
+                        <button
+                          type="button"
+                          onClick={() => buscarFamiliar(idx)}
+                          className="px-3 py-2 bg-blue-500 text-white rounded"
+                        >
+                          Buscar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeFamiliar(idx)}
+                          className="px-3 py-2 bg-red-100 text-red-700 rounded"
+                        >
+                          Eliminar
+                        </button>
                       </div>
 
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-2 w-full">
                         {f.existing ? (
-                          <div className="col-span-3 text-sm text-green-700">Existente: {f.nombre || 'Sin nombre'}</div>
+                          <div className="col-span-5 text-sm text-green-700">
+                            Existente: {f.nombre || 'Sin nombre'}
+                          </div>
                         ) : (
                           <>
                             <input
@@ -389,26 +460,61 @@ function ModificarSocioContent() {
                               onChange={(e) => updateFamiliarField(idx, 'email', e.target.value)}
                               className="px-3 py-2 border rounded"
                             />
+                            <input
+                              type="text"
+                              placeholder="Teléfono (si no es menor)"
+                              value={f.telefono || ''}
+                              onChange={(e) => updateFamiliarField(idx, 'telefono', e.target.value)}
+                              className="px-3 py-2 border rounded"
+                            />
+                            <input
+                              type="password"
+                              placeholder="Contraseña (si no es menor)"
+                              value={f.contraseña || ''}
+                              onChange={(e) => updateFamiliarField(idx, 'contraseña', e.target.value)}
+                              className="px-3 py-2 border rounded"
+                            />
                           </>
                         )}
-                        {f.error && <div className="col-span-3 text-sm text-red-600">{f.error}</div>}
+                        {f.error && (
+                          <div className="col-span-5 text-sm text-red-600">{f.error}</div>
+                        )}
                       </div>
                     </div>
                   ))}
 
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={addFamiliar} className="px-3 py-2 bg-green-500 text-white rounded">Agregar miembro</button>
-                    <button type="button" onClick={handleGuardarMiembros} className="px-3 py-2 bg-blue-600 text-white rounded">Guardar miembros</button>
-                    <div className="text-sm text-gray-600">Miembros válidos: {familiaresInput.filter((f) => f && !f.error && (f.existing || (f.dni && f.nombre && f.fechaNacimiento))).length}</div>
+                    <button
+                      type="button"
+                      onClick={addFamiliar}
+                      className="px-3 py-2 bg-green-500 text-white rounded"
+                    >
+                      Agregar miembro
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGuardarMiembros}
+                      className="px-3 py-2 bg-blue-600 text-white rounded"
+                    >
+                      Guardar miembros
+                    </button>
+                    <div className="text-sm text-gray-600">
+                      Miembros válidos:{' '}
+                      {familiaresInput.filter(
+                        (f) =>
+                          f &&
+                          !f.error &&
+                          (f.existing || (f.dni && f.dni.trim() && f.nombre && f.fechaNacimiento))
+                      ).length}
+                    </div>
                   </div>
 
-                  {/* Mostrar miembros guardados debajo */}
-                  {miembrosGuardados && miembrosGuardados.length > 0 && (
+                  {miembrosGuardados.length > 0 && (
                     <div className="mt-4">
                       <h4 className="text-sm font-semibold mb-2">Miembros guardados:</h4>
                       <ul className="list-disc pl-5">
                         {miembrosGuardados.map((m, i) => (
-                          <li key={i} className="mb-1">
+                          <li key={`${m.dni}-${i}`} className="mb-1">
                             {m.dni} - {m.nombre} {m.existing ? '(existente)' : ''}
                           </li>
                         ))}
@@ -417,6 +523,7 @@ function ModificarSocioContent() {
                   )}
                 </div>
               )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -426,8 +533,6 @@ function ModificarSocioContent() {
                 }}
                 className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto"
               >
-                {/* ...campos del formulario... */}
-                {/* Los campos del formulario se mantienen, solo se asegura el cierre correcto del JSX. */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Teléfono
@@ -447,6 +552,7 @@ function ModificarSocioContent() {
                     <span className="text-red-500 text-sm">{errores.telefono}</span>
                   )}
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Dirección <span className="text-gray-400 text-xs">(opcional)</span>
@@ -465,6 +571,7 @@ function ModificarSocioContent() {
                     <span className="text-red-500 text-sm">{errores.direccion}</span>
                   )}
                 </div>
+
                 <div className="mt-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de Socio
@@ -496,6 +603,7 @@ function ModificarSocioContent() {
                     </label>
                   </div>
                 </div>
+
                 <div className="flex gap-4 mt-8 items-center">
                   <button
                     type="button"
@@ -513,14 +621,23 @@ function ModificarSocioContent() {
                     }`}
                     disabled={Boolean(
                       Object.keys(errores).length > 0 ||
-                      (editSocio && editSocio.esMenorDe12) ||
-                      (socio && editSocio && socio.tipoSocio === 'INDIVIDUAL' && editSocio.tipoSocio === 'FAMILIAR' && miembrosGuardados.length < 3)
+                      editSocio.esMenorDe12 ||
+                      (socio && editSocio.tipoSocio === 'FAMILIAR' && (
+                        (socio.tipoSocio === 'INDIVIDUAL' && miembrosGuardados.length < 3) ||
+                        (socio.tipoSocio === 'FAMILIAR' && !socio.planFamiliarId && miembrosGuardados.length < 3)
+                      ))
                     )}
                   >
                     Guardar
                   </button>
                   {mensaje && (
-                    <div className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${mensaje.toLowerCase().includes('error') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                    <div
+                      className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${
+                        mensaje.toLowerCase().includes('error')
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}
+                    >
                       {mensaje}
                     </div>
                   )}
@@ -536,7 +653,13 @@ function ModificarSocioContent() {
 
 export default function ModificarSocioPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div></div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        </div>
+      }
+    >
       <ModificarSocioContent />
     </Suspense>
   );
