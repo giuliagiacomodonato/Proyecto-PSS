@@ -170,7 +170,8 @@ export default function GrillaUsuariosPage() {
 											<td className="py-3 text-sm text-gray-600 truncate" title={u.dni}>{u.dni}</td>
 											<td className="py-3 text-sm text-gray-600">{u.rol.toLowerCase()}</td>
 											<td className="py-3 text-sm">
-												<button className="text-blue-600">Reservar</button>
+												{/* Redirige a la página de reserva presencial, pasando el dni para prefilling */}
+												<Link href={`/admin/reservaCanchaPresencial?dni=${u.dni}`} className="text-blue-600">Reservar</Link>
 											</td>
 											<td className="py-3 text-sm">
 												<button className="text-blue-600">Pagos</button>
