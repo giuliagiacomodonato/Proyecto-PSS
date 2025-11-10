@@ -206,3 +206,67 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const canchaId = searchParams.get('id')
+
+    if (!canchaId) {
+      return NextResponse.json({ message: 'ID de cancha no proporcionado' }, { status: 400 })
+    }
+
+    const body: Partial<CanchaData> = await request.json()
+
+    // Validar campos editables
+    if (!body.tipo || !body.ubicacion || body.precio === undefined || !body.horarios) {
+      return NextResponse.json({ message: 'Campos incompletos para actualización' }, { status: 400 })
+    }
+
+    if (body.precio <= 0) {
+      return NextResponse.json({ message: 'El precio debe ser mayor a 0' }, { status: 400 })
+    }
+
+    if (body.ubicacion.length > 100) {
+      return NextResponse.json({ message: 'La ubicación no puede exceder 100 caracteres' }, { status: 400 })
+    }
+
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+    for (const horario of body.horarios) {
+      if (!timeRegex.test(horario.inicio) || !timeRegex.test(horario.fin)) {
+        return NextResponse.json({ message: 'Formato de horario inválido (debe ser HH:MM)' }, { status: 400 })
+      }
+      const [hi, mi] = horario.inicio.split(':').map(Number)
+      const [hf, mf] = horario.fin.split(':').map(Number)
+      if (hi * 60 + mi >= hf * 60 + mf) {
+        return NextResponse.json({ message: 'La hora de inicio debe ser anterior a la hora de fin' }, { status: 400 })
+      }
+    }
+
+    // Verificar que la cancha exista
+    const existing = await prisma.cancha.findUnique({ where: { id: parseInt(canchaId) } })
+    if (!existing) {
+      return NextResponse.json({ message: 'Cancha no encontrada' }, { status: 404 })
+    }
+
+    // Update: reemplazar campos y horarios (borrar horarios anteriores y crear los nuevos)
+    const updated = await prisma.cancha.update({
+      where: { id: parseInt(canchaId) },
+      data: {
+        tipo: body.tipo as any,
+        ubicacion: body.ubicacion,
+        precio: body.precio,
+        horarios: {
+          deleteMany: {},
+          create: body.horarios.map(h => ({ horaInicio: h.inicio, horaFin: h.fin }))
+        }
+      },
+      include: { horarios: true }
+    })
+
+    return NextResponse.json({ message: 'Cancha actualizada exitosamente', cancha: updated })
+  } catch (error) {
+    console.error('Error al actualizar cancha:', error)
+    return NextResponse.json({ message: 'Error al actualizar la cancha' }, { status: 500 })
+  }
+}
