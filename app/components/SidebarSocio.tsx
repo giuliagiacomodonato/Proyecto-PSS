@@ -62,7 +62,7 @@ export default function SidebarSocio() {
       icon: <CreditCard size={24} />,
       label: 'Pagos',
       subItems: [
-        { label: 'Cuota Socio', href: '/socio/pagoSocio?tipo=cuota' },
+        { label: 'Cuota Socio', href: '/socio/pagoCuotaSocio' },
         { label: 'Cuota Practica', href: '/socio/pagoSocio?tipo=practica' }
       ]
     },
