@@ -256,31 +256,45 @@ export default function SocioPage() {
                     </div>
                   </div>
                   <div className="divide-y divide-gray-200">
+                    {/* Cuota Socio del mes actual */}
                     {cuotas && cuotas.length > 0 ? (
-                      cuotas.map((cuota) => (
-                        <Link
-                          key={cuota.id}
-                          href="/socio/pagoSocio"
-                          className="px-6 py-4 hover:bg-gray-50 transition-colors block group"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="font-medium text-gray-900">{cuota.tipo}</p>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                cuota.estado === 'pagado'
-                                  ? 'bg-green-100 text-green-800'
-                                  : cuota.estado === 'vencido'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}
-                            >
-                              {cuota.estado === 'pagado' ? 'Pagado' : cuota.estado === 'vencido' ? 'Vencido' : 'Pendiente'}
-                            </span>
+                      <>
+                        {cuotas.slice(0, 1).map((cuota) => (
+                          <div key={cuota.id} className="px-6 py-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-medium text-gray-900">Cuota Socio</p>
+                              {cuota.estado === 'pagado' ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  [paga]
+                                </span>
+                              ) : (
+                                <Link
+                                  href="/socio/pagoCuotaSocio"
+                                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors"
+                                >
+                                  [impaga] - Pagar
+                                </Link>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500">Período: {cuota.tipo}</p>
+                            {cuota.estado !== 'pagado' && (
+                              <p className="text-sm text-gray-500">Vencimiento: {cuota.vencimiento}</p>
+                            )}
+                            <p className="text-lg font-semibold text-gray-900 mt-2">${cuota.monto.toLocaleString('es-AR')}</p>
                           </div>
-                          <p className="text-sm text-gray-500">Vencimiento: {cuota.vencimiento}</p>
-                          <p className="text-lg font-semibold text-gray-900 mt-2">${cuota.monto.toLocaleString('es-AR')}</p>
-                        </Link>
-                      ))
+                        ))}
+                        {/* Otras cuotas si existen */}
+                        {cuotas.length > 1 && (
+                          <div className="px-6 py-3 bg-gray-50">
+                            <Link
+                              href="/socio/pagoCuotaSocio"
+                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              Ver todas las cuotas ({cuotas.length})
+                            </Link>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="px-6 py-8 text-center">
                         <p className="text-gray-500 text-sm">No hay cuotas pendientes</p>
