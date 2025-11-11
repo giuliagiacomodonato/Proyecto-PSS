@@ -73,6 +73,9 @@ export default function AltaSocioPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info'>('info');
+  // confirmation modal state to replace native confirm()
+  const [showConversionConfirm, setShowConversionConfirm] = useState(false);
+  const [pendingConversionEntry, setPendingConversionEntry] = useState<any | null>(null);
 
   // Validaciones
   const validateField = (name: string, value: string): string => {
@@ -342,33 +345,9 @@ export default function AltaSocioPage() {
 
         // Si está registrado con plan individual, preguntar si se desea convertirlo
         if (socioExistente.tipoSocio === 'INDIVIDUAL') {
-          const confirmar = typeof window !== 'undefined' && window.confirm(
-            `El socio con DNI ${socioExistente.dni} ya está registrado como INDIVIDUAL. ¿Desea convertir su plan a FAMILIAR y agregarlo al grupo?`
-          );
-
-          if (!confirmar) {
-            // No se agrega ni se modifica nada
-            return;
-          }
-
-          // Agregar un entry que indica que se usará el socio existente (el servidor procesará la conversión)
-          const existingEntry: any = {
-            id: socioExistente.id,
-            nombre: socioExistente.nombre,
-            dni: socioExistente.dni,
-            fechaNacimiento: socioExistente.fechaNacimiento,
-            email: socioExistente.email,
-            telefono: socioExistente.telefono,
-            esMenorDe12: socioExistente.esMenorDe12,
-            // marcador para el backend de que es un socio ya existente
-            existing: true
-          };
-
-          setFamiliares(prev => [...prev, existingEntry as unknown as FamiliarData]);
-          setShowModalFamiliar(false);
-          setFamiliarErrors({});
-          setMensaje('Socio existente agregado al grupo familiar y marcado para conversión');
-          setMensajeTipo('success');
+          // Instead of native confirm(), show an inline confirmation modal (toast-like)
+          setPendingConversionEntry(socioExistente);
+          setShowConversionConfirm(true);
           return;
         }
       }
@@ -383,6 +362,35 @@ export default function AltaSocioPage() {
     setFamiliarErrors({});
     setMensaje('Familiar agregado exitosamente');
     setMensajeTipo('success');
+  };
+
+  // When user confirms conversion in-modal, add the pending conversion entry
+  const confirmConversion = () => {
+    if (!pendingConversionEntry) return;
+    const socioExistente = pendingConversionEntry;
+    const existingEntry: any = {
+      id: socioExistente.id,
+      nombre: socioExistente.nombre,
+      dni: socioExistente.dni,
+      fechaNacimiento: socioExistente.fechaNacimiento,
+      email: socioExistente.email,
+      telefono: socioExistente.telefono,
+      esMenorDe12: socioExistente.esMenorDe12,
+      existing: true
+    };
+
+    setFamiliares(prev => [...prev, existingEntry as unknown as FamiliarData]);
+    setShowModalFamiliar(false);
+    setFamiliarErrors({});
+    setMensaje('Socio existente agregado al grupo familiar y marcado para conversión');
+    setMensajeTipo('success');
+    setPendingConversionEntry(null);
+    setShowConversionConfirm(false);
+  };
+
+  const cancelConversion = () => {
+    setPendingConversionEntry(null);
+    setShowConversionConfirm(false);
   };
 
   const isFormValid = () => {
@@ -954,6 +962,20 @@ export default function AltaSocioPage() {
           <div className="mt-8 flex justify-center">
             <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
               {mensaje}
+            </div>
+          </div>
+        )}
+
+        {/* Inline confirmation modal to replace native confirm() */}
+        {showConversionConfirm && pendingConversionEntry && (
+          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-60 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full p-6">
+              <h3 className="text-lg font-semibold mb-2">Confirmar conversión de socio</h3>
+              <p className="text-sm text-gray-700 mb-4">El socio con DNI <strong>{pendingConversionEntry.dni}</strong> está registrado como <strong>INDIVIDUAL</strong>. ¿Desea convertir su plan a <strong>FAMILIAR</strong> y agregarlo al grupo?</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={cancelConversion} className="px-4 py-2 rounded border border-gray-300 text-gray-700">Cancelar</button>
+                <button onClick={confirmConversion} className="px-4 py-2 rounded bg-green-600 text-white">Convertir y agregar</button>
+              </div>
             </div>
           </div>
         )}
