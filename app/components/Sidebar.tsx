@@ -97,9 +97,10 @@ export default function Sidebar() {
       icon: <Dumbbell size={20} />,
       label: 'Prácticas Deportivas',
       subItems: [
-        { label: 'Registrar Práctica', href: '/admin/altaPractica' },
-        { label: 'Modificar Práctica', href: '/admin/modifPractica' },
-        { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' }
+        { label: 'Registrar Práctica', href: '/admin/practicas/altaPractica' },
+        { label: 'Modificar Práctica', href: '/admin/practicas/modifPractica' },
+        { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' },
+        { label: 'Consultar Inscripciones', href: '/admin/practicas/consultarInscripciones' }
       ]
     },
     {
