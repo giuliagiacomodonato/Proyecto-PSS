@@ -106,7 +106,7 @@ export default function Sidebar() {
       icon: <CreditCard size={20} />,
       label: 'Pagos',
       subItems: [
-        { label: 'Ver Pagos', href: '/admin/pagos' },
+        { label: 'Ver Pagos', href: '/admin/gestionPagos' },
         { label: 'Registrar Pago', href: '/admin/pagos/registrar' }
       ]
     },

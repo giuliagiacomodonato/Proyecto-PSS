@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { titular, last4, monto, tipo, usuarioSocioId, turnoId, metodoPago } = body
+  const { titular, last4, monto, tipo, usuarioSocioId, turnoId, cuotaId, inscripcionId, metodoPago } = body
 
     if (!titular || !last4 || !monto || !tipo || !usuarioSocioId) {
       return NextResponse.json({ error: 'Faltan datos del pago.' }, { status: 400 })
@@ -20,17 +20,20 @@ export async function POST(request: Request) {
     }
 
     // Crear el registro de pago en la base de datos
-    const pago = await prisma.pago.create({
-      data: {
-        usuarioSocioId: usuarioSocioId,
-        tipoPago: tipo,
-        turnoId: turnoId || null,
-        monto: monto,
-        metodoPago: metodoPago || 'TARJETA_CREDITO',
-        estado: 'PAGADO',
-        comprobante: `tok_mock_${Date.now()}`
-      }
-    })
+    const pagoData: any = {
+      usuarioSocioId: usuarioSocioId,
+      tipoPago: tipo,
+      monto: monto,
+      metodoPago: metodoPago || 'TARJETA_CREDITO',
+      estado: 'PAGADO',
+      comprobante: `tok_mock_${Date.now()}`
+    }
+
+    if (turnoId) pagoData.turnoId = turnoId
+    if (cuotaId) pagoData.cuotaId = cuotaId
+    if (inscripcionId) pagoData.inscripcionId = inscripcionId
+
+    const pago = await prisma.pago.create({ data: pagoData })
 
     return NextResponse.json({ 
       success: true, 

@@ -174,7 +174,7 @@ export default function GrillaUsuariosPage() {
 												<Link href={`/admin/reservaCanchaPresencial?dni=${u.dni}`} className="text-blue-600">Reservar</Link>
 											</td>
 											<td className="py-3 text-sm">
-												<button className="text-blue-600">Pagos</button>
+												<Link href={`/admin/gestionPagos?dni=${u.dni}`} className="text-blue-600">Ver Pagos</Link>
 											</td>
 											<td className="py-3 text-sm">
 												{/* Modificar: redirigir a la página correspondiente pasando dni */}
