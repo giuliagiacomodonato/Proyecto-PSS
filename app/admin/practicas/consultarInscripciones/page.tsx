@@ -88,19 +88,29 @@ export default function ConsultarInscripcionesPage() {
 
   const exportCsv = () => {
     if (!detallePractica) return
-    const rows = inscriptosDetalle.map((i) => ({
-      dni: i.usuarioSocio.dni,
-      nombre: i.usuarioSocio.nombre,
-      email: i.usuarioSocio.email || ''
-    }))
+    const sep = ';'
+    const bom = '\uFEFF'
     const header = ['DNI de Socio', 'Nombre', 'Email']
-    const csv = [header.join(','), ...rows.map(r => `${r.dni},"${r.nombre}","${r.email}"`)].join('\n')
+
+    const escapeField = (value: any) => {
+      if (value === null || value === undefined) return ''
+      const str = String(value)
+      if (str.includes(sep) || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    const rows = inscriptosDetalle.map((i) => [i.usuarioSocio.dni, i.usuarioSocio.nombre, i.usuarioSocio.email || ''].map(escapeField).join(sep))
+    const csv = bom + [header.join(sep), ...rows].join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `${detallePractica.nombre.replace(/\s+/g,'_')}_inscriptos.csv`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 

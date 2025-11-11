@@ -116,6 +116,54 @@ export default function AdminDashboardPage() {
 
   const [from, setFrom] = useState<string>("")
   const [to, setTo] = useState<string>("")
+  
+  // Estado para Métricas Asistencias
+  const [deportes, setDeportes] = useState<any[]>([])
+  const [deporteSeleccionado, setDeporteSeleccionado] = useState<string>("")
+  const [porcentajeAsistencia, setPorcentajeAsistencia] = useState<number | null>(null)
+  const [loadingAsistencia, setLoadingAsistencia] = useState(false)
+  
+  // Cargar lista de deportes al montar
+  useEffect(() => {
+    const fetchDeportes = async () => {
+      try {
+        const res = await fetch('/api/practicas')
+        if (res.ok) {
+          const data = await res.json()
+          setDeportes(data)
+          if (data.length > 0) {
+            setDeporteSeleccionado(data[0].id.toString())
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar deportes:', error)
+      }
+    }
+    fetchDeportes()
+  }, [])
+  
+  // Cargar porcentaje de asistencia cuando cambia el deporte
+  useEffect(() => {
+    if (!deporteSeleccionado) return
+    
+    const fetchAsistencia = async () => {
+      setLoadingAsistencia(true)
+      try {
+        const res = await fetch(
+          `/api/reportes/asistencias?resumenRapido=true&deporteId=${deporteSeleccionado}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setPorcentajeAsistencia(data.porcentaje)
+        }
+      } catch (error) {
+        console.error('Error al cargar asistencia:', error)
+      } finally {
+        setLoadingAsistencia(false)
+      }
+    }
+    fetchAsistencia()
+  }, [deporteSeleccionado])
 
   // ✅ Mostrar pantalla de carga mientras verifica
   if (isChecking) {
@@ -224,10 +272,41 @@ export default function AdminDashboardPage() {
           <MetricPanel
             title="Métricas Asistencias"
             icon={<CheckSquare size={20} />}
-            metrics={[{ label: "Asistencia", value: "— %" }]}
-            detailsUrl="/api/asistencias"
+            metrics={[
+              { 
+                label: "Asistencia", 
+                value: loadingAsistencia 
+                  ? "Cargando..." 
+                  : porcentajeAsistencia !== null 
+                    ? `${porcentajeAsistencia}%` 
+                    : "—"
+              }
+            ]}
+            detailsUrl="/api/reportes/asistencias"
           >
-            <div className="text-sm text-gray-600">Selector de deporte + porcentaje (layout)</div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-600 mb-1 block">Filtrar por Deporte:</label>
+                <select
+                  value={deporteSeleccionado}
+                  onChange={(e) => setDeporteSeleccionado(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-800 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                >
+                  {deportes.map((deporte) => (
+                    <option key={deporte.id} value={deporte.id}>
+                      {deporte.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <button
+                onClick={() => window.location.href = '/admin/reportes/asistencias'}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Ver Reporte Detallado
+              </button>
+            </div>
           </MetricPanel>
         </section>
       </main>
