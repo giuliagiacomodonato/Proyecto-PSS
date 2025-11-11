@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 
 // Definir los enums
 const RolUsuario = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
   ADMIN: 'ADMIN',
   SOCIO: 'SOCIO',
   ENTRENADOR: 'ENTRENADOR'
