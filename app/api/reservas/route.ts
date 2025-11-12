@@ -99,3 +99,34 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// Agregamos GET para devolver reservas/turnos activos (útil para dashboard)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const limit = Number(searchParams.get('limit') || 100)
+    const offset = Number(searchParams.get('offset') || 0)
+
+    const turnos = await prisma.turno.findMany({
+      where: {},
+      select: {
+        id: true,
+        canchaId: true,
+        horaInicio: true,
+        fecha: true,
+        reservado: true,
+        usuarioSocioId: true
+      },
+      orderBy: { fecha: 'desc' },
+      skip: offset,
+      take: limit
+    })
+
+    const total = await prisma.turno.count()
+
+    return NextResponse.json({ turnos, total, limit, offset })
+  } catch (error) {
+    console.error('Error al listar reservas:', error)
+    return NextResponse.json({ message: 'Error interno del servidor' }, { status: 500 })
+  }
+}

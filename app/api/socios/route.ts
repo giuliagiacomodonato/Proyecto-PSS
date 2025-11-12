@@ -266,47 +266,64 @@ export async function GET(request: NextRequest) {
     const dni = searchParams.get('dni');
     const email = searchParams.get('email');
 
-    if (!dni && !email) {
-      return NextResponse.json(
-        { message: 'Se requiere DNI o email para la búsqueda' },
-        { status: 400 }
-      );
+    // Si vienen dni o email, hacemos la búsqueda puntual (comportamiento previo)
+    if (dni || email) {
+      const whereClause: any = {};
+      if (dni) whereClause.dni = dni;
+      if (email) whereClause.email = email;
+
+      const socio = await prisma.usuario.findFirst({
+        where: {
+          ...whereClause,
+          rol: 'SOCIO'
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          email: true,
+          telefono: true,
+          direccion: true,
+          fechaNacimiento: true,
+          tipoSocio: true,
+          planFamiliarId: true,
+          fechaAlta: true,
+          esMenorDe12: true
+        }
+      });
+
+      if (socio) {
+        return NextResponse.json({ existe: true, socio: socio });
+      } else {
+        return NextResponse.json({ existe: false });
+      }
     }
 
-    const whereClause: any = {};
-    if (dni) whereClause.dni = dni;
-    if (email) whereClause.email = email;
+    // Si no vienen params, devolver una lista resumida de socios para el dashboard
+    // Limitamos la respuesta para evitar payloads enormes
+    const limit = Number(searchParams.get('limit') || 100);
+    const offset = Number(searchParams.get('offset') || 0);
 
-    const socio = await prisma.usuario.findFirst({
-      where: {
-        ...whereClause,
-        rol: 'SOCIO'
-      },
+    const socios = await prisma.usuario.findMany({
+      where: { rol: 'SOCIO' },
       select: {
         id: true,
         nombre: true,
-        dni: true,
         email: true,
+        dni: true,
         telefono: true,
-        direccion: true,
-        fechaNacimiento: true,
         tipoSocio: true,
         planFamiliarId: true,
-        fechaAlta: true,
-        esMenorDe12: true
-      }
+        fechaAlta: true
+      },
+      orderBy: { fechaAlta: 'desc' },
+      skip: offset,
+      take: limit
     });
 
-    if (socio) {
-      return NextResponse.json({
-        existe: true,
-        socio: socio
-      });
-    } else {
-      return NextResponse.json({
-        existe: false
-      });
-    }
+    const total = await prisma.usuario.count({ where: { rol: 'SOCIO' } });
+
+    return NextResponse.json({ socios, total, limit, offset });
 
   } catch (error) {
     console.error('Error al buscar socio:', error);

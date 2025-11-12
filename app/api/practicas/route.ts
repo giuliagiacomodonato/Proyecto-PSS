@@ -169,6 +169,11 @@ export async function GET() {
     return NextResponse.json(practicas)
   } catch (error) {
     console.error('Error al obtener prácticas deportivas:', error)
+    // Manejar errores de conexión de Prisma (p. ej. servidor cerró la conexión)
+    const errAny = error as any
+    if (errAny && (errAny.code === 'P1017' || errAny.message?.includes('Server has closed the connection'))) {
+      return NextResponse.json({ error: 'Conexión a la base de datos cerrada. Intente nuevamente.' }, { status: 503 })
+    }
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -403,5 +408,67 @@ export async function PUT(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const idParam = searchParams.get('id')
+
+    if (!idParam) {
+      return NextResponse.json({ error: 'Se requiere el ID de la práctica' }, { status: 400 })
+    }
+
+    const id = Number(idParam)
+    if (Number.isNaN(id)) {
+      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    }
+
+    // Consultar la práctica con entrenadores e inscripciones
+    const practica = await prisma.practicaDeportiva.findUnique({
+      where: { id },
+      include: {
+        entrenadores: { select: { id: true, nombre: true } },
+        inscripciones: { select: { id: true, usuarioSocioId: true, activa: true } }
+      }
+    })
+
+    if (!practica) {
+      return NextResponse.json({ error: 'La práctica no existe' }, { status: 404 })
+    }
+
+    // Si tiene entrenadores asociados, no permitir la baja
+    if (practica.entrenadores && practica.entrenadores.length > 0) {
+      // Devolver 409 Conflict para indicar que la operación no es aplicable
+      return NextResponse.json(
+        { error: 'No se puede eliminar la práctica porque tiene un entrenador asociado. Por favor, eliminar a los entrenadores asociados previamente o cambiarlos a otras prácticas.' },
+        { status: 409 }
+      )
+    }
+
+    // Número de inscripciones a procesar
+    const cantidadInscripciones = practica.inscripciones ? practica.inscripciones.length : 0
+
+    // Ejecutar en transacción: marcar inscripciones como inactivas, eliminar horarios y la práctica
+    await prisma.$transaction(async (tx) => {
+      if (cantidadInscripciones > 0) {
+        await tx.inscripcion.updateMany({
+          where: { practicaDeportivaId: id },
+          data: { activa: false }
+        })
+      }
+
+      // Eliminar horarios asociados
+      await tx.horario.deleteMany({ where: { practicaDeportivaId: id } })
+
+      // Finalmente eliminar la práctica
+      await tx.practicaDeportiva.delete({ where: { id } })
+    })
+
+    return NextResponse.json({ message: 'Práctica eliminada exitosamente', procesadas: cantidadInscripciones }, { status: 200 })
+  } catch (error) {
+    console.error('Error al eliminar práctica deportiva:', error)
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }
