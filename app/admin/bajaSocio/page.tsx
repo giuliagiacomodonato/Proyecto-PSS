@@ -34,7 +34,8 @@ export default function BajaSocioPage() {
 
   // Maneja el cambio de valor del campo DNI y valida formato
   const handleDniChange = (value: string) => {
-    setDni(value)
+    const digits = value.replace(/\D/g, '').slice(0,8)
+    setDni(digits)
     if (value && /^\d{7,8}$/.test(value)) {
       setErrors({})
     }

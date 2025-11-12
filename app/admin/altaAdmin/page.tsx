@@ -102,7 +102,9 @@ export default function AltaAdminPage() {
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Si el campo es DNI, permitir solo dígitos y máximo 8 caracteres
+    const newValue = field === 'dni' ? value.replace(/\D/g, '').slice(0, 8) : value
+    setFormData(prev => ({ ...prev, [field]: newValue }))
     // Validar campo en tiempo real
     validateField(field, value)
   }
