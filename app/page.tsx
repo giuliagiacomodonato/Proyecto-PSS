@@ -251,8 +251,8 @@ export default function Home() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-transparent">
-  <div className="w-full max-w-md bg-white/90 rounded-xl shadow-2xl p-8 m-4 backdrop-blur-sm">
+    <div className="flex items-center justify-center min-h-screen bg-white">
+      <div className="w-full max-w-md bg-white/90 rounded-xl shadow-2xl p-8 m-4 backdrop-blur-sm">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Iniciar Sesión</h1>
         <p className="text-center text-gray-500 mb-8">
           Accede a tu cuenta para la gestión del club

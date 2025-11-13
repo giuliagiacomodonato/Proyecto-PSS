@@ -53,11 +53,12 @@ export default function BajaAdminPage() {
 
   // Validar DNI en tiempo real
   const handleDniChange = (value: string) => {
-    setDni(value)
+    const digits = value.replace(/\D/g, '').slice(0,8)
+    setDni(digits)
     setAdministrador(null)
     
     // Limpiar error si el DNI está correcto
-    if (value && /^\d{7,8}$/.test(value)) {
+    if (digits && /^\d{7,8}$/.test(digits)) {
       setErrors({})
     }
   }
