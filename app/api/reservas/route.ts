@@ -104,29 +104,73 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const canchaIdParam = searchParams.get('canchaId')
+    const fechaParam = searchParams.get('fecha')
     const limit = Number(searchParams.get('limit') || 100)
     const offset = Number(searchParams.get('offset') || 0)
 
+    const where: any = {}
+
+    if (canchaIdParam) {
+      const cid = parseInt(canchaIdParam)
+      if (!Number.isNaN(cid)) where.canchaId = cid
+    }
+
+    if (fechaParam) {
+      // filtrar por día (00:00 - 23:59:59)
+      const start = new Date(fechaParam + 'T00:00:00')
+      const end = new Date(fechaParam + 'T23:59:59')
+      where.fecha = { gte: start, lt: end }
+    }
+
     const turnos = await prisma.turno.findMany({
-      where: {},
+      where,
       select: {
         id: true,
         canchaId: true,
         horaInicio: true,
         fecha: true,
         reservado: true,
-        usuarioSocioId: true
+        usuarioSocioId: true,
+        usuarioSocio: {
+          select: { dni: true }
+        }
       },
-      orderBy: { fecha: 'desc' },
+      orderBy: [{ fecha: 'desc' }, { horaInicio: 'asc' }],
       skip: offset,
       take: limit
     })
 
-    const total = await prisma.turno.count()
+    const total = await prisma.turno.count({ where })
 
     return NextResponse.json({ turnos, total, limit, offset })
   } catch (error) {
     console.error('Error al listar reservas:', error)
     return NextResponse.json({ message: 'Error interno del servidor' }, { status: 500 })
+  }
+}
+
+// DELETE para cancelar una reserva (marca reservado = false)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ message: 'id requerido' }, { status: 400 })
+
+    const turnoId = parseInt(id)
+
+    const turno = await prisma.turno.findUnique({ where: { id: turnoId } })
+    if (!turno) return NextResponse.json({ message: 'Turno no encontrado' }, { status: 404 })
+
+    // Actualizamos para marcar como no reservado y quitar usuarioSocioId
+    const actualizado = await prisma.turno.update({
+      where: { id: turnoId },
+      data: { reservado: false, usuarioSocioId: null }
+    })
+
+    return NextResponse.json({ message: 'Reserva cancelada', turno: actualizado })
+  } catch (error) {
+    console.error('Error al cancelar reserva:', error)
+    return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }

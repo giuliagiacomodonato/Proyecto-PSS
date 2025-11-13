@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import { User, Trash2, AlertTriangle } from 'lucide-react'
@@ -26,8 +26,31 @@ export default function EliminarPracticaPage() {
   const [loading, setLoading] = useState(false)
   const [loadingPracticas, setLoadingPracticas] = useState(true)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info'>('info')
+  const hideTimerRef = useRef<number | null>(null)
+
+  // Auto-dismiss del banner después de 5 segundos
+  useEffect(() => {
+    // Limpiar timer previo si existe
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+
+    if (mensaje) {
+      hideTimerRef.current = window.setTimeout(() => {
+        setMensaje(null)
+      }, 5000)
+    }
+
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current)
+        hideTimerRef.current = null
+      }
+    }
+  }, [mensaje])
 
   useEffect(() => {
     cargarPracticas()
@@ -60,7 +83,8 @@ export default function EliminarPracticaPage() {
 
   const handleConfirmarBaja = () => {
     if (!practicaSeleccionada) {
-      setErrorMessage('Debe seleccionar una práctica')
+      setMensaje('Debe seleccionar una práctica')
+      setMensajeTipo('error')
       return
     }
     setShowConfirmModal(true)
@@ -73,8 +97,18 @@ export default function EliminarPracticaPage() {
   const eliminarPractica = async () => {
     if (!practicaSeleccionada) return
     setLoading(true)
-    setErrorMessage('')
+    setMensaje(null)
 
+    // Comprobación cliente: si la práctica tiene entrenadores asociados, mostrar
+    // el mismo estilo de mensaje de error que usamos en 'Registrar Socio' y
+    // no realizar la llamada al servidor para evitar posibles fallos de Next.
+    if (practicaSeleccionada.entrenadores && practicaSeleccionada.entrenadores.length > 0) {
+      setMensaje(`Error: No se puede eliminar la práctica porque tiene un entrenador asociado. Por favor, elimine o reasigne al entrenador antes de intentar nuevamente.`)
+      setMensajeTipo('error')
+      setShowConfirmModal(false)
+      setLoading(false)
+      return
+    }
     try {
       const res = await fetch(`/api/practicas?id=${practicaSeleccionada.id}`, {
         method: 'DELETE'
@@ -86,7 +120,8 @@ export default function EliminarPracticaPage() {
       }
 
       setShowConfirmModal(false)
-      setSuccessMessage('¡Práctica eliminada exitosamente!')
+      setMensaje('¡Práctica eliminada exitosamente!')
+      setMensajeTipo('success')
       setPracticaId('')
       setPracticaSeleccionada(null)
 
@@ -97,7 +132,8 @@ export default function EliminarPracticaPage() {
       setTimeout(() => router.push('/admin'), 2500)
     } catch (err: any) {
       console.error('Error al eliminar práctica:', err)
-      setErrorMessage(err.message || 'Error desconocido')
+      setMensaje(err.message || 'Error desconocido')
+      setMensajeTipo('error')
       setShowConfirmModal(false)
     } finally {
       setLoading(false)
@@ -140,7 +176,7 @@ export default function EliminarPracticaPage() {
           <h2 className="text-2xl font-semibold text-gray-800">Eliminar Práctica</h2>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-2xl">
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-2xl overflow-hidden">
           <div className="mb-6">
             <label htmlFor="practica" className="block text-sm font-medium text-gray-700 mb-2">
               Buscar Práctica por Nombre <span className="text-red-500">*</span>
@@ -185,9 +221,7 @@ export default function EliminarPracticaPage() {
             </div>
           )}
 
-          {errorMessage && (
-            <div className="mb-4 text-sm text-red-600">{errorMessage}</div>
-          )}
+          
 
           <div className="flex gap-4">
             <button
@@ -207,13 +241,18 @@ export default function EliminarPracticaPage() {
                 <Trash2 className="w-5 h-5" />
                 Confirmar Baja
               </button>
-              {successMessage && (
-                <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg whitespace-nowrap">
-                  ✓ {successMessage}
-                </div>
-              )}
+              
             </div>
           </div>
+
+          {mensaje && (
+            <div className="mt-4 flex justify-center">
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium break-words max-w-full ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                {mensaje}
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -237,6 +276,8 @@ export default function EliminarPracticaPage() {
                   <p className="text-sm text-gray-600 mt-1">Entrenadores asociados: {practicaSeleccionada.entrenadores?.length || 0}</p>
                 </div>
               )}
+
+              
 
               <div className="flex gap-3">
                 <button
@@ -266,6 +307,7 @@ export default function EliminarPracticaPage() {
                   )}
                 </button>
               </div>
+              
             </div>
           </div>
         </div>
