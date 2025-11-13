@@ -31,11 +31,26 @@ interface ReservaCanchaProps {
   onError: (message: string) => void
 }
 
+// Nota: `onConfirmReservation` permite a un padre (p.ej. página admin)
+// interceptar la confirmación y manejarla (crear turno + crear pago pendiente)
+// sin alterar el flujo por defecto del socio.
+interface ReservaCanchaPropsWithAdmin extends ReservaCanchaProps {
+  onConfirmReservation?: (reserva: {
+    canchaId: number
+    fecha: string
+    horario: string
+    usuarioSocioId: number
+    precio: number
+    nombreCancha: string
+  }) => Promise<void>
+}
+
 export default function ReservaCancha({ 
   usuarioSocioId, 
   onSuccess, 
-  onError 
-}: ReservaCanchaProps) {
+  onError,
+  onConfirmReservation
+}: ReservaCanchaPropsWithAdmin) {
   const router = useRouter()
   
   // Estados
@@ -191,9 +206,21 @@ export default function ReservaCancha({
         nombreCancha: selectedCancha.nombre
       }
       
+      // If parent provided a custom handler (e.g. admin flow), call it
+      if (typeof onConfirmReservation === 'function') {
+        try {
+          await onConfirmReservation(reservaData)
+          return
+        } catch (err) {
+          console.error('Error en onConfirmReservation:', err)
+          const message = err instanceof Error ? err.message : 'Error al confirmar la reserva'
+          onError(message)
+          return
+        }
+      }
+
+      // Default behavior (socio): store in session and redirect to pagoSocio
       sessionStorage.setItem('reservaPendiente', JSON.stringify(reservaData))
-      
-      // Redireccionar al pago
       router.push(`/socio/pagoSocio?tipo=RESERVA_CANCHA`)
     } catch (error) {
       console.error('Error:', error)

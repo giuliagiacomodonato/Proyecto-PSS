@@ -103,6 +103,45 @@ export default function ReservaCanchaPresencialAdminPage() {
 									usuarioSocioId={usuario.id}
 									onSuccess={() => showMensaje('Reserva realizada correctamente')}
 									onError={(msg: string) => showMensaje(msg, 'error')}
+									onConfirmReservation={async (reserva) => {
+										try {
+											// 1) Crear reserva (turno)
+											const r1 = await fetch('/api/reservas', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													canchaId: reserva.canchaId,
+													fecha: reserva.fecha,
+													horario: reserva.horario,
+													usuarioSocioId: reserva.usuarioSocioId
+												})
+											})
+											const j1 = await r1.json()
+											if (!r1.ok) throw new Error(j1.message || 'Error creando reserva')
+											const turnoId = j1.turnoId ?? j1.turno?.id
+
+											// 2) Crear pago pendiente vinculado al turno
+											const r2 = await fetch('/api/payments/pending', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													usuarioSocioId: reserva.usuarioSocioId,
+													monto: reserva.precio,
+													turnoId: turnoId
+												})
+											})
+											const j2 = await r2.json()
+											if (!r2.ok) throw new Error(j2.error || 'Error registrando pago pendiente')
+
+											// 3) Mostrar mensaje y redirigir al panel de pagos del admin con el dni del socio
+											showMensaje('Reserva y pago pendiente registrados', 'success')
+											router.push(`/admin/gestionPagos?dni=${usuario.dni}`)
+										} catch (err: any) {
+											console.error('Error en flujo admin de reserva:', err)
+											showMensaje(err?.message || 'Error al crear reserva/pago', 'error')
+											throw err
+										}
+										}}
 								/>
 							</div>
 						) : (
