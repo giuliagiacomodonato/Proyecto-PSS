@@ -44,6 +44,8 @@ function ModificarSocioContent() {
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
   const [familiaresInput, setFamiliaresInput] = useState<FamiliarInput[]>([]);
   const [miembrosGuardados, setMiembrosGuardados] = useState<FamiliarInput[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<Array<{id:number;nombre:string;dni:string;esMenorDe12:boolean}>>([]);
+  const [showConfirmDisband, setShowConfirmDisband] = useState(false);
 
   const handleGuardarMiembros = () => {
     const miembrosValidos = familiaresInput.filter(
@@ -184,6 +186,30 @@ function ModificarSocioContent() {
       }
     }
 
+    // Si se está intentando convertir una cabeza de familia a individual,
+    // primero mostramos los miembros y pedimos confirmación explicando
+    // que los mayores se convertirán a individual y los menores serán eliminados.
+    const isDisbandAttempt = editSocio.tipoSocio === 'INDIVIDUAL' && socio && socio.tipoSocio === 'FAMILIAR' && socio.planFamiliarId;
+    if (isDisbandAttempt) {
+      try {
+        const planId = socio!.planFamiliarId;
+        const resMembers = await fetch(`/api/socios?planId=${encodeURIComponent(planId || '')}`, { cache: 'no-store' });
+        if (!resMembers.ok) {
+          setMensaje('No se pudieron obtener los miembros del plan familiar para confirmar la acción.');
+          return;
+        }
+        const dataMembers = await resMembers.json();
+        const miembros: Array<any> = dataMembers.miembros || [];
+        setFamilyMembers(miembros.map((m:any)=>({ id: m.id, nombre: m.nombre, dni: m.dni, esMenorDe12: m.esMenorDe12 })));
+        setShowConfirmDisband(true);
+        return; // no enviar PATCH todavía, esperamos confirmación
+      } catch (err) {
+        console.error('Error obteniendo miembros del plan:', err);
+        setMensaje('Error al obtener miembros del plan familiar. Intente de nuevo.');
+        return;
+      }
+    }
+
     try {
       const bodyToSend: Record<string, any> = {
         id: editSocio.id,
@@ -259,6 +285,51 @@ function ModificarSocioContent() {
     setErrores({});
     setFamiliaresInput([]);
     setMiembrosGuardados([]);
+  };
+
+  const handleConfirmDisband = async (confirm: boolean) => {
+    setShowConfirmDisband(false);
+    if (!confirm) {
+      setMensaje('Operación cancelada. No se realizaron cambios.');
+      return;
+    }
+
+    // Al confirmar, enviamos el PATCH (la lógica del servidor ya aplica conversiones/eliminaciones)
+    try {
+      setMensaje('Procesando cambio de plan y actualizando miembros...');
+      // Reusar bodyToSend desde handleGuardar: solo campos editables más tipoSocio=INDIVIDUAL
+      const bodyToSend: Record<string, any> = {
+        id: editSocio!.id,
+        email: editSocio!.email,
+        telefono: editSocio!.telefono,
+        direccion: editSocio!.direccion,
+        tipoSocio: 'INDIVIDUAL'
+      };
+
+      const res = await fetch('/api/socios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyToSend),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(()=>({ message: 'Error desconocido' }));
+        setMensaje(errorData.message || 'No se pudo completar la operación');
+        return;
+      }
+
+      const result = await res.json();
+      setMensaje(result.message || 'Operación completada');
+      // Limpiar formulario y estados
+      setSocio(null);
+      setEditSocio(null);
+      setFamiliaresInput([]);
+      setMiembrosGuardados([]);
+      setFamilyMembers([]);
+    } catch (err) {
+      console.error('Error al confirmar disband:', err);
+      setMensaje('Error al procesar la solicitud');
+    }
   };
 
   const addFamiliar = () => setFamiliaresInput((prev) => [...prev, { dni: '' }]);
@@ -644,6 +715,38 @@ function ModificarSocioContent() {
                 </div>
               </form>
             </>
+          )}
+          {/* Confirm modal for disbanding family */}
+          {showConfirmDisband && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+              <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-6">
+                <h3 className="text-lg font-semibold mb-3">Confirmar cambio de plan</h3>
+                <p className="text-sm text-gray-700 mb-3">Este socio es cabeza de un plan familiar. Al cambiar a plan individual, el sistema realizará lo siguiente automáticamente:</p>
+                <ul className="list-disc pl-5 text-sm mb-3">
+                  <li>Los miembros mayores de edad se convertirán a plan individual.</li>
+                  <li>Los miembros menores de edad serán eliminados del sistema.</li>
+                </ul>
+                <div className="max-h-48 overflow-auto mb-3 border rounded p-2">
+                  <h4 className="text-sm font-medium mb-2">Miembros del grupo familiar:</h4>
+                  {familyMembers.length === 0 ? (
+                    <p className="text-sm text-gray-500">No se encontraron miembros.</p>
+                  ) : (
+                    <ul className="text-sm space-y-1">
+                      {familyMembers.map((m) => (
+                        <li key={m.id} className="flex justify-between">
+                          <span>{m.nombre} (DNI: {m.dni})</span>
+                          <span className={`text-xs ${m.esMenorDe12? 'text-red-600':'text-green-700'}`}>{m.esMenorDe12? 'Será ELIMINADO (menor)':'Será convertido a INDIVIDUAL'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button onClick={()=>handleConfirmDisband(false)} className="px-4 py-2 border rounded">Cancelar</button>
+                  <button onClick={()=>handleConfirmDisband(true)} className="px-4 py-2 bg-red-600 text-white rounded">Confirmar y aplicar cambios</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </main>
