@@ -227,3 +227,20 @@ enum MetodoPago {
   TARJETA_CREDITO
   TRANSFERENCIA
 }
+
+model EmailLog {
+  id         Int      @id @default(autoincrement())
+  toAddress  String
+  subject    String
+  bodyText   String?
+  bodyHtml   String?
+  messageId  String?
+  previewUrl String?
+  status     String   @default("PENDING")
+  error      String?
+  tipo       String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@map("email_logs")
+}

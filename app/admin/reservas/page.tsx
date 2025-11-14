@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
-import { User, Trash2 } from 'lucide-react'
-import ConfirmModal from '@/app/components/ConfirmModal'
+import { User, Trash2, AlertTriangle } from 'lucide-react'
 
 type Reserva = {
   id: number
@@ -82,10 +81,14 @@ export default function GestionReservasPage() {
       const res = await fetch(`/api/reservas?id=${toCancel.id}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || 'Error cancelando')
-      setMensaje('Reserva cancelada correctamente')
+      // eliminar fila localmente para actualización instantánea
+      const cancelledId = toCancel.id
+      setTurnos(prev => prev.filter(t => t.id !== cancelledId))
+      setMensaje('Reserva cancelada correctamente y socio notificado con éxito')
       setMensajeTipo('success')
       setShowConfirm(false)
       setToCancel(null)
+      // refrescar desde servidor (asegurar consistencia)
       cargarTurnos(1)
     } catch (e: any) {
       console.error(e)
@@ -95,6 +98,15 @@ export default function GestionReservasPage() {
       setToCancel(null)
     }
   }
+
+  // Auto-dismiss del banner de mensaje después de 5 segundos
+  useEffect(() => {
+    if (!mensaje) return
+    const id = window.setTimeout(() => {
+      setMensaje(null)
+    }, 5000)
+    return () => clearTimeout(id)
+  }, [mensaje])
 
   if (isChecking) return <div className="flex items-center justify-center min-h-screen">Verificando permisos...</div>
   if (!isAuthorized) return null
@@ -139,8 +151,6 @@ export default function GestionReservasPage() {
             </div>
           </div>
 
-          {mensaje && (<div className="mb-4"><div className={`px-4 py-2 rounded text-sm ${mensajeTipo==='error' ? 'bg-red-100 text-red-800' : mensajeTipo==='success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{mensaje}</div></div>)}
-
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -175,15 +185,56 @@ export default function GestionReservasPage() {
             </div>
           </div>
 
-          {showConfirm && toCancel && (
-            <ConfirmModal title="Confirmar cancelación" onConfirm={confirmCancel} onCancel={()=>{setShowConfirm(false); setToCancel(null)}} confirmText="Confirmar cancelación">
-              <div className="text-sm text-gray-700">
-                <p>¿Está seguro que desea cancelar la reserva?</p>
-                <p className="mt-2"><strong>Cancha:</strong> {canchas.find(c=>c.id===toCancel.canchaId)?.nombre ?? toCancel.canchaId}</p>
-                <p><strong>Fecha:</strong> {new Date(toCancel.fecha).toLocaleDateString()}</p>
-                <p><strong>Horario:</strong> {toCancel.horaInicio}</p>
+          {mensaje && (
+            <div className="mt-6 flex justify-center">
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${mensajeTipo === 'error' ? 'bg-red-100 text-red-800' : mensajeTipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                {mensaje}
               </div>
-            </ConfirmModal>
+            </div>
+          )}
+
+          {showConfirm && toCancel && (
+            <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-2xl max-w-md w-full transform transition-all">
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-red-100 rounded-full">
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">Confirmar cancelación</h3>
+                  </div>
+
+                  <p className="text-gray-600 mb-6">¿Está seguro que desea eliminar la reserva?</p>
+
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
+                    <p className="text-sm text-gray-600 mb-2">Reserva a cancelar:</p>
+                    <p className="font-semibold text-gray-900 text-lg">{canchas.find(c=>c.id===toCancel.canchaId)?.nombre ?? toCancel.canchaId}</p>
+                    <p className="text-sm text-gray-600 mt-1">Fecha: {new Date(toCancel.fecha).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600 mt-1">Horario: {toCancel.horaInicio}</p>
+                    <p className="text-sm text-gray-600 mt-1">DNI Socio: {toCancel.usuarioSocio?.dni ?? toCancel.usuarioSocioId ?? '-'}</p>
+                  </div>
+
+                  <p className="text-gray-600 mb-6">Advertencia: se enviará una notificación automática por email al socio informando la cancelación.</p>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={confirmCancel}
+                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowConfirm(false); setToCancel(null) }}
+                      className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
         </div>

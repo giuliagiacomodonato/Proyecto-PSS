@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// DELETE para cancelar una reserva (marca reservado = false)
+// DELETE para cancelar una reserva (elimina el turno)
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -161,14 +161,31 @@ export async function DELETE(request: NextRequest) {
 
     const turno = await prisma.turno.findUnique({ where: { id: turnoId } })
     if (!turno) return NextResponse.json({ message: 'Turno no encontrado' }, { status: 404 })
+    // Obtener datos del socio (si existe) para enviar notificación
+    const socio = turno.usuarioSocioId ? await prisma.usuario.findUnique({ where: { id: turno.usuarioSocioId } }) : null
 
-    // Actualizamos para marcar como no reservado y quitar usuarioSocioId
-    const actualizado = await prisma.turno.update({
-      where: { id: turnoId },
-      data: { reservado: false, usuarioSocioId: null }
-    })
+    // Eliminar el turno completamente (solo guardamos turnos activos)
+    const eliminado = await prisma.turno.delete({ where: { id: turnoId } })
 
-    return NextResponse.json({ message: 'Reserva cancelada', turno: actualizado })
+    // Enviar correo de cancelación si existe email del socio
+    if (socio && socio.email) {
+      try {
+        const { enviarCorreoCancelacionReserva } = await import('@/lib/email')
+        await enviarCorreoCancelacionReserva({
+          email: socio.email,
+          nombre: socio.nombre || '',
+          dni: socio.dni || '',
+          canchaNombre: (await prisma.cancha.findUnique({ where: { id: eliminado.canchaId } }))?.nombre || '',
+          fecha: eliminado.fecha,
+          horario: eliminado.horaInicio || ''
+        })
+        console.log(`Correo de cancelación enviado a ${socio.email}`)
+      } catch (emailError) {
+        console.error('Error al enviar correo de cancelación:', emailError)
+      }
+    }
+
+    return NextResponse.json({ message: 'Reserva cancelada', turno: eliminado })
   } catch (error) {
     console.error('Error al cancelar reserva:', error)
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
