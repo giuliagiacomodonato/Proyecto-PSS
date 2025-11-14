@@ -1,211 +1,131 @@
 import nodemailer from 'nodemailer'
+import { prisma } from './prisma'
 
-// Configuración del transporter de nodemailer
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+// Implementación ligera para envío/simulación de correos y registro en EmailLog.
+let _cachedTransporter: nodemailer.Transporter | null = null
+let _defaultFrom: string | null = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? null
 
-interface EmailBajaUsuarioParams {
-  email: string
-  nombre: string
-  dni: string
-  rol: string
-  fechaBaja: Date
+async function getTransporter() {
+	if (_cachedTransporter) return _cachedTransporter
+
+	const smtpUser = process.env.SMTP_USER
+	const smtpPass = process.env.SMTP_PASS
+
+	if (smtpUser && smtpPass) {
+		_cachedTransporter = nodemailer.createTransport({
+			host: process.env.SMTP_HOST || 'smtp.gmail.com',
+			port: parseInt(process.env.SMTP_PORT || '587'),
+			secure: process.env.SMTP_SECURE === 'true',
+			auth: { user: smtpUser, pass: smtpPass },
+		})
+		_defaultFrom = process.env.SMTP_FROM ?? smtpUser
+		return _cachedTransporter
+	}
+
+	// Fallback de desarrollo: cuenta Ethereal
+	const testAccount = await nodemailer.createTestAccount()
+	_cachedTransporter = nodemailer.createTransport({
+		host: 'smtp.ethereal.email',
+		port: 587,
+		secure: false,
+		auth: { user: testAccount.user, pass: testAccount.pass },
+	})
+	_defaultFrom = process.env.SMTP_FROM ?? testAccount.user
+	console.log('Email: usando cuenta de prueba Ethereal:', testAccount.user)
+	return _cachedTransporter
+}
+
+interface EmailCancelacionReservaParams {
+	email: string
+	nombre: string
+	dni?: string
+	canchaNombre?: string
+	fecha?: Date
+	horario?: string
 }
 
 /**
- * Envía un correo de notificación al usuario que fue dado de baja
+ * Envía (o simula) un correo de cancelación y crea un registro en EmailLog.
+ * La entrada en DB se crea siempre; status = 'SENT' o 'ERROR'.
  */
-export async function enviarCorreoBajaUsuario({
-  email,
-  nombre,
-  dni,
-  rol,
-  fechaBaja,
-}: EmailBajaUsuarioParams) {
-  const fechaFormateada = fechaBaja.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+export async function enviarCorreoCancelacionReserva({
+	email,
+	nombre,
+	dni = '',
+	canchaNombre = '',
+	fecha,
+	horario = '',
+}: EmailCancelacionReservaParams) {
+	const fechaFormateada = fecha ? fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
 
-  const rolTexto = rol === 'ADMIN' ? 'Administrador' : rol === 'SOCIO' ? 'Socio' : 'Entrenador'
+	const subject = 'Cancelación de reserva - Club Deportivo'
+	const text = `Hola ${nombre},\n\nSu reserva ha sido cancelada.\n${canchaNombre ? `Cancha: ${canchaNombre}\n` : ''}${fechaFormateada ? `Fecha: ${fechaFormateada}\n` : ''}${horario ? `Horario: ${horario}\n` : ''}${dni ? `DNI: ${dni}\n` : ''}\n\nSaludos,\nAdministración Club Deportivo`
+	const html = `<!doctype html><html><body><h2>Club Deportivo</h2><p>Hola <strong>${nombre}</strong>,</p><p>Su reserva ha sido cancelada.</p><div><strong>Detalle:</strong>${canchaNombre ? `<div>Cancha: ${canchaNombre}</div>` : ''}${fechaFormateada ? `<div>Fecha: ${fechaFormateada}</div>` : ''}${horario ? `<div>Horario: ${horario}</div>` : ''}${dni ? `<div>DNI: ${dni}</div>` : ''}</div><p>Saludos,<br/>Administración Club Deportivo</p></body></html>`
 
-  const mailOptions = {
-    from: `"Club Deportivo" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: `Notificación de Baja - ${rolTexto}`,
-    html: `
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background-color: #1e40af;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px 8px 0 0;
-          }
-          .content {
-            background-color: #f9fafb;
-            padding: 30px;
-            border: 1px solid #e5e7eb;
-            border-radius: 0 0 8px 8px;
-          }
-          .info-box {
-            background-color: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #1e40af;
-            border-radius: 4px;
-          }
-          .info-row {
-            margin: 10px 0;
-          }
-          .label {
-            font-weight: bold;
-            color: #6b7280;
-          }
-          .value {
-            color: #111827;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            color: #6b7280;
-            text-align: center;
-          }
-          .alert {
-            background-color: #fee2e2;
-            border-left: 4px solid #dc2626;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Club Deportivo</h1>
-          <p>Notificación de Baja de Usuario</p>
-        </div>
-        
-        <div class="content">
-          <p>Estimado/a <strong>${nombre}</strong>,</p>
-          
-          <div class="alert">
-            <p style="margin: 0;">
-              Le informamos que su cuenta de <strong>${rolTexto}</strong> ha sido dada de baja en el sistema del Club Deportivo.
-            </p>
-          </div>
-          
-          <div class="info-box">
-            <h3 style="margin-top: 0;">Detalles de la baja:</h3>
-            
-            <div class="info-row">
-              <span class="label">Nombre:</span>
-              <span class="value">${nombre}</span>
-            </div>
-            
-            <div class="info-row">
-              <span class="label">DNI:</span>
-              <span class="value">${dni}</span>
-            </div>
-            
-            <div class="info-row">
-              <span class="label">Rol:</span>
-              <span class="value">${rolTexto}</span>
-            </div>
-            
-            <div class="info-row">
-              <span class="label">Fecha de baja:</span>
-              <span class="value">${fechaFormateada}</span>
-            </div>
-          </div>
-          
-          <p>
-            A partir de este momento, su acceso al sistema ha sido revocado y sus credenciales ya no son válidas.
-          </p>
-          
-          <p>
-            Si considera que esta baja es un error o tiene alguna consulta, por favor contacte con la administración del club.
-          </p>
-          
-          <p>Saludos cordiales,<br>
-          <strong>Administración del Club Deportivo</strong></p>
-        </div>
-        
-        <div class="footer">
-          <p>Este es un correo automático, por favor no responda a este mensaje.</p>
-          <p>&copy; ${new Date().getFullYear()} Club Deportivo. Todos los derechos reservados.</p>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-Estimado/a ${nombre},
+	const mailOptions = {
+		from: process.env.SMTP_FROM ?? `"Club Deportivo" <${_defaultFrom ?? 'no-reply@clubdeportivo.local'}>`,
+		to: email,
+		subject,
+		text,
+		html,
+	}
 
-Le informamos que su cuenta de ${rolTexto} ha sido dada de baja en el sistema del Club Deportivo.
+	try {
+		const t = await getTransporter()
+		const info = await t.sendMail(mailOptions)
+		const preview = nodemailer.getTestMessageUrl(info) ?? null
+		console.log('Correo de cancelación enviado:', info.messageId, 'preview:', preview)
 
-Detalles de la baja:
-- Nombre: ${nombre}
-- DNI: ${dni}
-- Rol: ${rolTexto}
-- Fecha de baja: ${fechaFormateada}
+		// Guardar registro en la base de datos. Usamos cast a any para evitar
+		// fallos de tipos si Prisma client no está regenerado aún.
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					messageId: info.messageId,
+					previewUrl: preview,
+					status: 'SENT',
+					tipo: 'CANCELACION_RESERVA',
+				},
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (SENT):', dbErr)
+		}
 
-A partir de este momento, su acceso al sistema ha sido revocado y sus credenciales ya no son válidas.
+		return { success: true, messageId: info.messageId }
+	} catch (err) {
+		console.error('Error enviando correo de cancelación:', err)
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					status: 'ERROR',
+					error: err instanceof Error ? err.message : String(err),
+					tipo: 'CANCELACION_RESERVA',
+				},
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (ERROR):', dbErr)
+		}
 
-Si considera que esta baja es un error o tiene alguna consulta, por favor contacte con la administración del club.
-
-Saludos cordiales,
-Administración del Club Deportivo
-
----
-Este es un correo automático, por favor no responda a este mensaje.
-    `,
-  }
-
-  try {
-    const info = await transporter.sendMail(mailOptions)
-    console.log('Correo de baja enviado:', info.messageId)
-    return { success: true, messageId: info.messageId }
-  } catch (error) {
-    console.error('Error al enviar correo de baja:', error)
-    throw new Error('Error al enviar el correo de notificación')
-  }
+		return { success: false, error: err instanceof Error ? err.message : String(err) }
+	}
 }
 
-/**
- * Verifica la configuración del servicio de correo
- */
 export async function verificarConfiguracionCorreo() {
-  try {
-    await transporter.verify()
-    console.log('Servidor de correo configurado correctamente')
-    return true
-  } catch (error) {
-    console.error('Error en la configuración del servidor de correo:', error)
-    return false
-  }
+	try {
+		const t = await getTransporter()
+		await t.verify()
+		return true
+	} catch (error) {
+		console.error('verificarConfiguracionCorreo:', error)
+		return false
+	}
 }
+

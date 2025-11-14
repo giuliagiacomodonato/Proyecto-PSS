@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,21 +7,191 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum para los roles de usuario
+model Usuario {
+  id                  Int                @id @default(autoincrement())
+  rol                 RolUsuario
+  nombre              String
+  dni                 String             @unique
+  fechaNacimiento     DateTime
+  email               String
+  telefono            String
+  contraseña         String?
+  fechaAlta           DateTime           @default(now())
+  tipoSocio           TipoSocio?
+  direccion           String?
+  familiarId          Int?
+  practicaDeportivaId Int?
+  planFamiliarId      String?
+  esMenorDe12         Boolean            @default(false)
+  asistencias         Asistencia[]
+  cuotas              Cuota[]
+  inscripciones       Inscripcion[]
+  pagos               Pago[]
+  turnos              Turno[]
+  familiar            Usuario?           @relation("SocioFamiliar", fields: [familiarId], references: [id])
+  familiares          Usuario[]          @relation("SocioFamiliar")
+  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
+  bajasRealizadas     UsuarioBaja[]
+
+  @@map("usuarios")
+}
+
+model PracticaDeportiva {
+  id            Int           @id @default(autoincrement())
+  nombre        String        @unique
+  descripcion   String
+  precio        Int
+  cupo          Int
+  asistencias   Asistencia[]
+  canchas       Cancha[]
+  horarios      Horario[]
+  inscripciones Inscripcion[]
+  entrenadores  Usuario[]
+
+  @@map("practicas_deportivas")
+}
+
+model Horario {
+  id                  Int               @id @default(autoincrement())
+  dia                 DiaSemana
+  horaInicio          String
+  horaFin             String
+  practicaDeportivaId Int
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+
+  @@map("horarios")
+}
+
+model Cancha {
+  id                  Int                @id @default(autoincrement())
+  ubicacion           String
+  precio              Int
+  practicaDeportivaId Int?
+  tipo                TipoCancha
+  nombre              String             @unique
+  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
+  horarios            HorarioCancha[]
+  turnos              Turno[]
+
+  @@map("canchas")
+}
+
+model HorarioCancha {
+  id         Int    @id @default(autoincrement())
+  canchaId   Int
+  horaInicio String
+  horaFin    String
+  cancha     Cancha @relation(fields: [canchaId], references: [id], onDelete: Cascade)
+
+  @@map("horarios_cancha")
+}
+
+model Turno {
+  id             Int      @id @default(autoincrement())
+  canchaId       Int
+  horaInicio     String
+  fecha          DateTime
+  reservado      Boolean  @default(false)
+  usuarioSocioId Int?
+  pagos          Pago[]
+  cancha         Cancha   @relation(fields: [canchaId], references: [id], onDelete: Cascade)
+  usuarioSocio   Usuario? @relation(fields: [usuarioSocioId], references: [id])
+
+  @@map("turnos")
+}
+
+model UsuarioBaja {
+  id                     Int        @id @default(autoincrement())
+  usuarioEliminadoId     Int
+  usuarioEliminadoNombre String
+  usuarioEliminadoDni    String
+  usuarioEliminadoEmail  String
+  rolUsuarioEliminado    RolUsuario
+  fechaBaja              DateTime   @default(now())
+  motivo                 String?
+  realizadoPorId         Int?
+  realizadoPorDni        String
+  realizadoPorNombre     String
+  realizadoPor           Usuario?   @relation(fields: [realizadoPorId], references: [id])
+
+  @@map("usuarios_bajas")
+}
+
+model Inscripcion {
+  id                  Int               @id @default(autoincrement())
+  usuarioSocioId      Int
+  practicaDeportivaId Int
+  fechaInscripcion    DateTime          @default(now())
+  activa              Boolean           @default(true)
+  asistencias         Asistencia[]
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  pagos               Pago[]
+
+  @@unique([usuarioSocioId, practicaDeportivaId])
+  @@map("inscripciones")
+}
+
+model Asistencia {
+  id                  Int               @id @default(autoincrement())
+  inscripcionId       Int
+  usuarioSocioId      Int
+  practicaDeportivaId Int
+  fecha               DateTime          @default(now())
+  presente            Boolean           @default(false)
+  inscripcion         Inscripcion       @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
+  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+
+  @@map("asistencias")
+}
+
+model Cuota {
+  id               Int      @id @default(autoincrement())
+  usuarioSocioId   Int
+  mes              Int
+  anio             Int
+  monto            Int
+  fechaVencimiento DateTime
+  usuarioSocio     Usuario  @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+  pagos            Pago[]
+
+  @@unique([usuarioSocioId, mes, anio])
+  @@map("cuotas")
+}
+
+model Pago {
+  id             Int          @id @default(autoincrement())
+  usuarioSocioId Int
+  tipoPago       TipoPago
+  turnoId        Int?
+  cuotaId        Int?
+  inscripcionId  Int?
+  monto          Int
+  fechaPago      DateTime     @default(now())
+  metodoPago     MetodoPago
+  estado         EstadoPago   @default(PENDIENTE)
+  comprobante    String?
+  cuota          Cuota?       @relation(fields: [cuotaId], references: [id], onDelete: Cascade)
+  inscripcion    Inscripcion? @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  turno          Turno?       @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+  usuarioSocio   Usuario      @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
+
+  @@map("pagos")
+}
+
 enum RolUsuario {
-  SUPER_ADMIN
   ADMIN
   SOCIO
   ENTRENADOR
+  SUPER_ADMIN
 }
 
-// Enum para tipo de socio
 enum TipoSocio {
   INDIVIDUAL
   FAMILIAR
 }
 
-// Enum para días de la semana
 enum DiaSemana {
   LUNES
   MARTES
@@ -38,14 +202,12 @@ enum DiaSemana {
   DOMINGO
 }
 
-// Enum para tipos de cancha
 enum TipoCancha {
   FUTBOL_5
   FUTBOL
   BASQUET
 }
 
-// Enum para estado de pago
 enum EstadoPago {
   PENDIENTE
   PAGADO
@@ -53,14 +215,12 @@ enum EstadoPago {
   CANCELADO
 }
 
-// Enum para tipo de pago
 enum TipoPago {
   RESERVA_CANCHA
   CUOTA_MENSUAL
   PRACTICA_DEPORTIVA
 }
 
-// Enum para método de pago
 enum MetodoPago {
   EFECTIVO
   TARJETA_DEBITO
@@ -68,215 +228,19 @@ enum MetodoPago {
   TRANSFERENCIA
 }
 
-// Tabla única de usuarios con todos los roles
-model Usuario {
-  id               Int         @id @default(autoincrement())
-  rol              RolUsuario
-  nombre           String      // Solo caracteres
-  dni              String      @unique // 7-8 dígitos
-  fechaNacimiento  DateTime
-  email            String      // Campo con '@' necesario (no único para permitir menores)
-  telefono         String      // Solo números
-  contraseña       String?     // Mínimo 8 caracteres con validaciones (opcional para menores de 12 años)
-  fechaAlta        DateTime    @default(now())
-  esMenorDe12      Boolean     @default(false) // Indica si es menor de 12 años (sin cuenta real)
-  
-  // Campos específicos para SOCIO
-  tipoSocio        TipoSocio?  // Solo para socios
-  direccion        String?     // Solo para socios
-  planFamiliarId   String?     // ID único del plan familiar (todos los miembros comparten el mismo)
-  familiarId       Int?        // Referencia a otro socio familiar
-  familiar         Usuario?    @relation("SocioFamiliar", fields: [familiarId], references: [id])
-  familiares       Usuario[]   @relation("SocioFamiliar")
-  
-  // Campos específicos para ENTRENADOR
-  practicaDeportivaId Int?     // Solo para entrenadores
-  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
-  
-  // Relaciones
-  turnos           Turno[]     // Turnos reservados (solo socios)
-  bajasRealizadas  UsuarioBaja[] // Bajas que realizó este usuario
-  inscripciones    Inscripcion[] // Inscripciones a prácticas deportivas (solo socios)
-  asistencias      Asistencia[]  // Asistencias a prácticas deportivas (solo socios)
-  pagos            Pago[]        // Pagos realizados
-  cuotas           Cuota[]       // Cuotas mensuales (solo cabeza de familia o socios individuales)
-  
-  @@map("usuarios")
-}
+model EmailLog {
+  id         Int      @id @default(autoincrement())
+  toAddress  String
+  subject    String
+  bodyText   String?
+  bodyHtml   String?
+  messageId  String?
+  previewUrl String?
+  status     String   @default("PENDING")
+  error      String?
+  tipo       String?
+  meta       Json?
+  createdAt  DateTime @default(now())
 
-// Tabla de prácticas deportivas
-model PracticaDeportiva {
-  id          Int       @id @default(autoincrement())
-  nombre      String    @unique // Solo caracteres
-  descripcion String    // Máximo 150 caracteres
-  precio      Int       // Solo dígitos
-  cupo        Int
-  // Relaciones
-  horarios      Horario[]
-  entrenadores  Usuario[]
-  canchas       Cancha[]
-  inscripciones Inscripcion[]
-  asistencias   Asistencia[]
-  
-  @@map("practicas_deportivas")
-}
-
-// Tabla de horarios para prácticas deportivas
-model Horario {
-  id                  Int               @id @default(autoincrement())
-  dia                 DiaSemana
-  horaInicio          String            // Formato HH:MM
-  horaFin             String            // Formato HH:MM
-  practicaDeportivaId Int
-  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
-  
-  @@map("horarios")
-}
-
-// Tabla de canchas
-model Cancha {
-  id                  Int               @id @default(autoincrement())
-  nombre              String            @unique // Nombre de la cancha
-  tipo                TipoCancha        // Tipo de cancha: FUTBOL_5, FUTBOL, BASQUET
-  ubicacion           String            // Máximo 100 caracteres
-  precio              Int               // Valor numérico entero positivo
-  
-  // Relaciones
-  practicaDeportivaId Int?
-  practicaDeportiva   PracticaDeportiva? @relation(fields: [practicaDeportivaId], references: [id])
-  horarios            HorarioCancha[]   // Múltiples rangos horarios
-  turnos              Turno[]
-  
-  @@map("canchas")
-}
-
-// Tabla de horarios de canchas (múltiples rangos por cancha)
-model HorarioCancha {
-  id          Int     @id @default(autoincrement())
-  canchaId    Int
-  cancha      Cancha  @relation(fields: [canchaId], references: [id], onDelete: Cascade)
-  horaInicio  String  // Formato HH:MM
-  horaFin     String  // Formato HH:MM
-  
-  @@map("horarios_cancha")
-}
-
-// Tabla de turnos
-model Turno {
-  id            Int      @id @default(autoincrement())
-  canchaId      Int
-  cancha        Cancha   @relation(fields: [canchaId], references: [id], onDelete: Cascade)
-  horaInicio    String   // Formato HH:MM
-  fecha         DateTime
-  reservado     Boolean  @default(false)
-  usuarioSocioId Int?    // Puede ser NULL si no está reservado
-  usuarioSocio  Usuario? @relation(fields: [usuarioSocioId], references: [id])
-  pagos         Pago[]   // Pagos asociados a este turno
-  
-  @@map("turnos")
-}
-
-// Tabla única de bajas de usuarios (auditoría de bajas)
-// Almacena un snapshot completo de los datos del usuario eliminado y del que realizó la baja
-model UsuarioBaja {
-  id                Int         @id @default(autoincrement())
-  
-  // Snapshot del usuario eliminado (datos históricos inmutables)
-  usuarioEliminadoId      Int         // ID del usuario eliminado (solo referencia histórica)
-  usuarioEliminadoNombre  String      // Nombre del usuario eliminado
-  usuarioEliminadoDni     String      // DNI del usuario eliminado
-  usuarioEliminadoEmail   String      // Email del usuario eliminado
-  rolUsuarioEliminado     RolUsuario  // Rol del usuario eliminado
-  
-  // Snapshot del usuario que realizó la baja (para auditoría completa)
-  realizadoPorId          Int?        // ID del administrador que realiza la baja (puede ser NULL si fue eliminado)
-  realizadoPorNombre      String      // Nombre del administrador que realizó la baja
-  realizadoPorDni         String      // DNI del administrador que realizó la baja
-  realizadoPor            Usuario?    @relation(fields: [realizadoPorId], references: [id], onDelete: SetNull)
-  
-  // Datos de la baja
-  fechaBaja               DateTime    @default(now())
-  motivo                  String?     // Motivo de la baja (opcional)
-  
-  @@map("usuarios_bajas")
-}
-
-// Tabla de inscripciones a prácticas deportivas
-model Inscripcion {
-  id                  Int               @id @default(autoincrement())
-  usuarioSocioId      Int
-  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
-  practicaDeportivaId Int
-  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
-  fechaInscripcion    DateTime          @default(now())
-  activa              Boolean           @default(true) // Si la inscripción sigue vigente
-  
-  // Relaciones
-  asistencias         Asistencia[]
-  pagos               Pago[]
-  
-  @@unique([usuarioSocioId, practicaDeportivaId]) // Un socio no puede inscribirse dos veces a la misma práctica
-  @@map("inscripciones")
-}
-
-// Tabla de asistencias a prácticas deportivas
-model Asistencia {
-  id                  Int               @id @default(autoincrement())
-  inscripcionId       Int
-  inscripcion         Inscripcion       @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
-  usuarioSocioId      Int
-  usuarioSocio        Usuario           @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
-  practicaDeportivaId Int
-  practicaDeportiva   PracticaDeportiva @relation(fields: [practicaDeportivaId], references: [id], onDelete: Cascade)
-  fecha               DateTime          @default(now())
-  presente            Boolean           @default(false) // Si asistió o no
-  
-  @@map("asistencias")
-}
-
-// Tabla de cuotas mensuales
-// Solo se registra para cabeza de familia (incluye valor total del grupo) o socios individuales
-model Cuota {
-  id              Int      @id @default(autoincrement())
-  usuarioSocioId  Int      // Solo cabeza de familia o socio individual
-  usuarioSocio    Usuario  @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
-  mes             Int      // Mes (1-12)
-  anio            Int      // Año (2024, 2025, etc.)
-  monto           Int      // Precio total de la cuota (si es familiar, incluye todos los miembros)
-  fechaVencimiento DateTime // Fecha límite de pago
-  
-  // Relaciones
-  pagos           Pago[]
-  
-  @@unique([usuarioSocioId, mes, anio]) // Una cuota por socio por mes/año
-  @@map("cuotas")
-}
-
-// Tabla unificada de pagos (para reservas, cuotas y prácticas deportivas)
-model Pago {
-  id              Int         @id @default(autoincrement())
-  usuarioSocioId  Int
-  usuarioSocio    Usuario     @relation(fields: [usuarioSocioId], references: [id], onDelete: Cascade)
-  
-  // Tipo de pago
-  tipoPago        TipoPago
-  
-  // Relaciones opcionales según el tipo de pago
-  turnoId         Int?        // Si es pago de reserva de cancha
-  turno           Turno?      @relation(fields: [turnoId], references: [id], onDelete: Cascade)
-  
-  cuotaId         Int?        // Si es pago de cuota mensual
-  cuota           Cuota?      @relation(fields: [cuotaId], references: [id], onDelete: Cascade)
-  
-  inscripcionId   Int?        // Si es pago de práctica deportiva
-  inscripcion     Inscripcion? @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
-  
-  // Datos del pago
-  monto           Int
-  fechaPago       DateTime    @default(now())
-  metodoPago      MetodoPago
-  estado          EstadoPago  @default(PENDIENTE)
-  comprobante     String?     // Número de comprobante o referencia
-  
-  @@map("pagos")
+  @@map("email_logs")
 }

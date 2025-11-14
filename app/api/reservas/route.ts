@@ -99,3 +99,95 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// Agregamos GET para devolver reservas/turnos activos (útil para dashboard)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const canchaIdParam = searchParams.get('canchaId')
+    const fechaParam = searchParams.get('fecha')
+    const limit = Number(searchParams.get('limit') || 100)
+    const offset = Number(searchParams.get('offset') || 0)
+
+    const where: any = {}
+
+    if (canchaIdParam) {
+      const cid = parseInt(canchaIdParam)
+      if (!Number.isNaN(cid)) where.canchaId = cid
+    }
+
+    if (fechaParam) {
+      // filtrar por día (00:00 - 23:59:59)
+      const start = new Date(fechaParam + 'T00:00:00')
+      const end = new Date(fechaParam + 'T23:59:59')
+      where.fecha = { gte: start, lt: end }
+    }
+
+    const turnos = await prisma.turno.findMany({
+      where,
+      select: {
+        id: true,
+        canchaId: true,
+        horaInicio: true,
+        fecha: true,
+        reservado: true,
+        usuarioSocioId: true,
+        usuarioSocio: {
+          select: { dni: true }
+        }
+      },
+      orderBy: [{ fecha: 'desc' }, { horaInicio: 'asc' }],
+      skip: offset,
+      take: limit
+    })
+
+    const total = await prisma.turno.count({ where })
+
+    return NextResponse.json({ turnos, total, limit, offset })
+  } catch (error) {
+    console.error('Error al listar reservas:', error)
+    return NextResponse.json({ message: 'Error interno del servidor' }, { status: 500 })
+  }
+}
+
+// DELETE para cancelar una reserva (elimina el turno)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ message: 'id requerido' }, { status: 400 })
+
+    const turnoId = parseInt(id)
+
+    const turno = await prisma.turno.findUnique({ where: { id: turnoId } })
+    if (!turno) return NextResponse.json({ message: 'Turno no encontrado' }, { status: 404 })
+    // Obtener datos del socio (si existe) para enviar notificación
+    const socio = turno.usuarioSocioId ? await prisma.usuario.findUnique({ where: { id: turno.usuarioSocioId } }) : null
+
+    // Eliminar el turno completamente (solo guardamos turnos activos)
+    const eliminado = await prisma.turno.delete({ where: { id: turnoId } })
+
+    // Enviar correo de cancelación si existe email del socio
+    if (socio && socio.email) {
+      try {
+        const { enviarCorreoCancelacionReserva } = await import('@/lib/email')
+        await enviarCorreoCancelacionReserva({
+          email: socio.email,
+          nombre: socio.nombre || '',
+          dni: socio.dni || '',
+          canchaNombre: (await prisma.cancha.findUnique({ where: { id: eliminado.canchaId } }))?.nombre || '',
+          fecha: eliminado.fecha,
+          horario: eliminado.horaInicio || ''
+        })
+        console.log(`Correo de cancelación enviado a ${socio.email}`)
+      } catch (emailError) {
+        console.error('Error al enviar correo de cancelación:', emailError)
+      }
+    }
+
+    return NextResponse.json({ message: 'Reserva cancelada', turno: eliminado })
+  } catch (error) {
+    console.error('Error al cancelar reserva:', error)
+    return NextResponse.json({ message: 'Error interno' }, { status: 500 })
+  }
+}
