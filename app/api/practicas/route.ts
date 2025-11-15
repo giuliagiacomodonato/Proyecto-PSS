@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { enviarCorreoBajaPractica } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -305,7 +306,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
       include: {
         entrenadores: { select: { id: true, nombre: true } },
-        inscripciones: { select: { id: true, usuarioSocioId: true, activa: true } }
+        inscripciones: { include: { usuarioSocio: { select: { id: true, nombre: true, email: true, dni: true } } } }
       }
     })
 
@@ -340,6 +341,21 @@ export async function DELETE(request: NextRequest) {
       // Finalmente eliminar la práctica
       await tx.practicaDeportiva.delete({ where: { id } })
     })
+
+    // Notificar por email a los socios que estaban inscriptos (si tienen email)
+    if (practica.inscripciones && practica.inscripciones.length > 0) {
+      for (const ins of practica.inscripciones) {
+        try {
+          const usuario = (ins as any).usuarioSocio
+          if (usuario && usuario.email) {
+            // No await para no bloquear la respuesta; registrar logs internamente.
+            enviarCorreoBajaPractica({ email: usuario.email, nombre: usuario.nombre ?? 'Socio', dni: usuario.dni ?? '', practicaNombre: practica.nombre })
+          }
+        } catch (e) {
+          console.error('Error al iniciar notificación por email para inscripcion:', e)
+        }
+      }
+    }
 
     return NextResponse.json({ message: 'Práctica eliminada exitosamente', procesadas: cantidadInscripciones }, { status: 200 })
   } catch (error) {
