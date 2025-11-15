@@ -99,6 +99,53 @@ export default function GestionReservasPage() {
     }
   }
 
+  // Determina el estado de la reserva según fecha/hora actual
+  function getEstadoReserva(r: Reserva) {
+    if (!r.reservado) return 'Disponible'
+    try {
+      // Soporta dos formatos de `r.fecha`:
+      // - ISO con hora y zona, p.ej. 2025-11-15T03:00:00.000Z
+      // - solo fecha YYYY-MM-DD
+      let dateObj: Date
+      if (typeof r.fecha === 'string' && r.fecha.includes('T')) {
+        // parseo ISO y luego extraigo la fecha local
+        const parsed = new Date(r.fecha)
+        if (isNaN(parsed.getTime())) throw new Error('Fecha inválida')
+        dateObj = parsed
+      } else {
+        const fechaParts = (r.fecha || '').split('-').map(Number)
+        if (fechaParts.length !== 3) throw new Error('Fecha inválida')
+        const [y, m, d] = fechaParts
+        dateObj = new Date(y, (m || 1) - 1, d)
+      }
+
+      // ahora extraer componentes locales (year, month, day)
+      const y = dateObj.getFullYear()
+      const m = dateObj.getMonth() + 1
+      const d = dateObj.getDate()
+
+      // parsear horaInicio (HH:mm[:ss] o H:mm)
+      let hh = 0, mm = 0, ss = 0
+      if (r.horaInicio) {
+        const timeParts = r.horaInicio.split(':').map(Number)
+        hh = Number.isFinite(timeParts[0]) ? timeParts[0] : 0
+        mm = Number.isFinite(timeParts[1]) ? timeParts[1] : 0
+        ss = Number.isFinite(timeParts[2]) ? timeParts[2] : 0
+      }
+
+      const start = new Date(y, m - 1, d, hh, mm, ss)
+      const end = new Date(start.getTime() + 60 * 60 * 1000) // duración 1 hora
+      const now = new Date()
+
+      if (now >= start && now < end) return 'En uso'
+      if (now < start) return 'Activa'
+      return 'Finalizada'
+    } catch (e) {
+      console.error('Error calculando estado reserva', e)
+      return r.reservado ? 'Reservado' : 'Disponible'
+    }
+  }
+
   // Auto-dismiss del banner de mensaje después de 5 segundos
   useEffect(() => {
     if (!mensaje) return
@@ -166,10 +213,10 @@ export default function GestionReservasPage() {
                   <tr><td colSpan={4} className="py-4 text-gray-500">No hay reservas</td></tr>
                 ) : turnos.map(t => (
                   <tr key={t.id} className="border-b">
-                    <td className="py-2">{t.reservado ? 'Reservado' : 'Disponible'}</td>
+                    <td className="py-2">{getEstadoReserva(t)}</td>
                     <td className="py-2">{t.horaInicio}</td>
                     <td className="py-2">{t.usuarioSocio?.dni ?? t.usuarioSocioId ?? '-'}</td>
-                    <td className="py-2">{t.reservado && <button onClick={()=>openCancelModal(t)} className="inline-flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded"><Trash2 className="w-4 h-4" /> Cancelar</button>}</td>
+                    <td className="py-2">{t.reservado && getEstadoReserva(t) === 'Activa' && <button onClick={()=>openCancelModal(t)} className="inline-flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded"><Trash2 className="w-4 h-4" /> Cancelar</button>}</td>
                   </tr>
                 ))}
               </tbody>

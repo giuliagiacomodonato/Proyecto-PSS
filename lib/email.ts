@@ -129,3 +129,73 @@ export async function verificarConfiguracionCorreo() {
 	}
 }
 
+interface EmailBajaPracticaParams {
+	email: string
+	nombre: string
+	dni?: string
+	practicaNombre?: string
+}
+
+/**
+ * Envía (o simula) un correo informando la baja de una práctica deportiva
+ * y crea un registro en EmailLog con tipo 'BAJA_PRACTICA'.
+ */
+export async function enviarCorreoBajaPractica({ email, nombre, dni = '', practicaNombre = '' }: EmailBajaPracticaParams) {
+	const subject = 'Información importante: Baja de práctica deportiva - Club Deportivo'
+	const text = `Hola ${nombre},\n\nLamentamos informarle que la práctica ${practicaNombre} ha sido dada de baja.\nSi tenía una inscripción activa, ya ha sido marcada como inactiva.\n\nSi necesita asistencia, contacte con Administración.\n\nSaludos,\nAdministración Club Deportivo`
+	const html = `<!doctype html><html><body><h2>Club Deportivo</h2><p>Hola <strong>${nombre}</strong>,</p><p>Lamentamos informarle que la práctica <strong>${practicaNombre}</strong> ha sido dada de baja. Si tenía una inscripción activa, se ha marcado como inactiva en el sistema.</p><p>Si necesita asistencia, contacte con Administración.</p><p>Saludos,<br/>Administración Club Deportivo</p></body></html>`
+
+	const mailOptions = {
+		from: process.env.SMTP_FROM ?? `"Club Deportivo" <${_defaultFrom ?? 'no-reply@clubdeportivo.local'}>`,
+		to: email,
+		subject,
+		text,
+		html,
+	}
+
+	try {
+		const t = await getTransporter()
+		const info = await t.sendMail(mailOptions)
+		const preview = nodemailer.getTestMessageUrl(info) ?? null
+		console.log('Correo de baja práctica enviado:', info.messageId, 'preview:', preview)
+
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					messageId: info.messageId,
+					previewUrl: preview,
+					status: 'SENT',
+					tipo: 'BAJA_PRACTICA',
+				}
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (SENT BAJA_PRACTICA):', dbErr)
+		}
+
+		return { success: true, messageId: info.messageId }
+	} catch (err) {
+		console.error('Error enviando correo de baja práctica:', err)
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					status: 'ERROR',
+					error: err instanceof Error ? err.message : String(err),
+					tipo: 'BAJA_PRACTICA',
+				}
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (ERROR BAJA_PRACTICA):', dbErr)
+		}
+
+		return { success: false, error: err instanceof Error ? err.message : String(err) }
+	}
+}
+
