@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Sidebar from '@/app/components/Sidebar'
 import { Input } from '@/app/components/input'
@@ -16,7 +16,7 @@ type Debt = {
 	type: "CUOTA_MENSUAL" | "PRACTICA_DEPORTIVA" | "RESERVA_CANCHA"
 }
 
-export default function GestionPagosPage() {
+function GestionPagosContent() {
 	const searchParams = useSearchParams()
 	const prefillDni = searchParams?.get('dni') || ''
 
@@ -388,7 +388,16 @@ export default function GestionPagosPage() {
 
 				
 
-			</main>
-		</div>
+
+		</main>
+	</div>
+	)
+}
+
+export default function GestionPagosPage() {
+	return (
+		<Suspense fallback={<LoadingSpinner />}>
+			<GestionPagosContent />
+		</Suspense>
 	)
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import ReservaCancha from '../../components/ReservaCancha'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -14,7 +14,7 @@ interface Usuario {
 	rol: string
 }
 
-export default function ReservaCanchaPresencialAdminPage() {
+function ReservaCanchaPresencialContent() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
 	const dniQuery = searchParams?.get('dni') || ''
@@ -151,12 +151,19 @@ export default function ReservaCanchaPresencialAdminPage() {
 				)}
 			</div>
 
-			{mensaje && (
-				<div className={`fixed left-1/2 -translate-x-1/2 bottom-8 px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap z-50 ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-					{mensaje.texto}
-				</div>
-			)}
-		</>
+		{mensaje && (
+			<div className={`fixed left-1/2 -translate-x-1/2 bottom-8 px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap z-50 ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+				{mensaje.texto}
+			</div>
+		)}
+	</>
 	)
 }
 
+export default function ReservaCanchaPresencialAdminPage() {
+	return (
+		<Suspense fallback={<LoadingSpinner />}>
+			<ReservaCanchaPresencialContent />
+		</Suspense>
+	)
+}
