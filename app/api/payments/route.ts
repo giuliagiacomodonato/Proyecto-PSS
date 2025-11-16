@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-  const { titular, last4, monto, tipo, usuarioSocioId, turnoId, cuotaId, inscripcionId, metodoPago } = body
+    const { titular, last4, monto, tipo, usuarioSocioId, turnoId, cuotaId, inscripcionId, inscripcionIds, cuotasSeleccionadas, metodoPago } = body
 
     if (!titular || !last4 || !monto || !tipo || !usuarioSocioId) {
       return NextResponse.json({ error: 'Faltan datos del pago.' }, { status: 400 })
@@ -19,7 +19,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' }, { status: 402 })
     }
 
-    // Crear el registro de pago en la base de datos
+    // Si es CUOTA_PRACTICA con cuotas seleccionadas, crear un pago por cada una
+    if (tipo === 'CUOTA_PRACTICA' && cuotasSeleccionadas && Array.isArray(cuotasSeleccionadas) && cuotasSeleccionadas.length > 0) {
+      const comprobante = `tok_mock_${Date.now()}`
+      
+      // Crear un pago por cada cuota
+      for (const cuota of cuotasSeleccionadas) {
+        const pagoData: any = {
+          usuarioSocioId: usuarioSocioId,
+          tipoPago: tipo,
+          monto: cuota.precio,
+          metodoPago: metodoPago || 'TARJETA_CREDITO',
+          estado: 'PAGADO',
+          comprobante: comprobante,
+          inscripcionId: cuota.id
+        }
+        
+        await prisma.pago.create({ data: pagoData })
+      }
+
+      // Retornar el monto total consolidado para la página de éxito
+      const montoTotal = cuotasSeleccionadas.reduce((sum, c) => sum + c.precio, 0)
+      
+      return NextResponse.json({ 
+        success: true, 
+        token: comprobante,
+        pagoId: comprobante, // Usar el comprobante como ID consolidado
+        montoTotal: montoTotal,
+        cantidadCuotas: cuotasSeleccionadas.length
+      })
+    }
+
+    // Crear el registro de pago en la base de datos (casos RESERVA_CANCHA, CUOTA_MENSUAL, etc)
     const pagoData: any = {
       usuarioSocioId: usuarioSocioId,
       tipoPago: tipo,

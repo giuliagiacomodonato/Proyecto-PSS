@@ -35,6 +35,15 @@ interface CuotaInfo {
   precioOriginal: number
 }
 
+interface CuotaPractica {
+  id: number
+  practicaDeportivaId: number
+  nombrePractica: string
+  precio: number
+  periodo: string
+  estado: 'PAGADA' | 'IMPAGA'
+}
+
 export default function PagoSocio() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -49,6 +58,8 @@ export default function PagoSocio() {
   const [usuarioSocioId, setUsuarioSocioId] = useState<number | null>(null)
   const [practicasInscritas, setPracticasInscritas] = useState<PracticaInscrita[]>([])
   const [cuotaInfo, setCuotaInfo] = useState<CuotaInfo | null>(null)
+  const [cuotasPractica, setCuotasPractica] = useState<CuotaPractica[]>([])
+  const [selectedCuotas, setSelectedCuotas] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     // Obtener el usuarioSocioId del localStorage
@@ -87,6 +98,15 @@ export default function PagoSocio() {
           if (response.ok) {
             const data = await response.json()
             setCuotaInfo(data.cuota || null)
+          }
+        } else if (tipo === 'CUOTA_PRACTICA') {
+          // Obtener las cuotas de prácticas pendientes de pago
+          const response = await fetch(`/api/socios/cuotas-practica?usuarioId=${usuarioSocioId}`)
+          if (response.ok) {
+            const data = await response.json()
+            const unpaidQuotas = data.cuotasPractica?.filter((c: CuotaPractica) => c.estado === 'IMPAGA') || []
+            setCuotasPractica(unpaidQuotas)
+            setSelectedCuotas(new Set())
           }
         }
       } catch (error) {
@@ -128,6 +148,19 @@ export default function PagoSocio() {
         detalles: cuotaInfo
       }
     }
+    if (tipo === 'CUOTA_PRACTICA') {
+      const total = Array.from(selectedCuotas).reduce((sum, cuotaId) => {
+        const cuota = cuotasPractica.find(c => c.id === cuotaId)
+        return sum + (cuota?.precio || 0)
+      }, 0)
+      return {
+        concepto: 'Pago Cuota Práctica',
+        monto: total,
+        descripcion: 'Seleccione las cuotas de prácticas que desea pagar:',
+        tipoPago: 'CUOTA_PRACTICA',
+        detalles: cuotasPractica
+      }
+    }
     return {
       concepto: 'Pago Cuota Mensual',
       monto: 10000,
@@ -152,10 +185,16 @@ export default function PagoSocio() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
+    
+    // Para CUOTA_PRACTICA, verificar que haya cuotas seleccionadas
+    if (tipo === 'CUOTA_PRACTICA' && selectedCuotas.size === 0) {
+      setMensaje({ tipo: 'error', texto: 'Por favor, selecciona al menos una cuota para pagar.' })
+      return
+    }
+    
     setLoading(true)
     setErrors({})
     try {
-      // Enviar solo datos no sensibles o tokenizados: aquí simulamos tokenización enviando los últimos 4 dígitos
       const last4 = form.numero.replace(/\s+/g, '').slice(-4)
       
       // Si es reserva de cancha, guardar la reserva y el pago
@@ -180,7 +219,7 @@ export default function PagoSocio() {
         turnoId = reservaResultado.turnoId
       }
 
-      const payload = { 
+      const payload: any = { 
         titular: form.titular, 
         last4, 
         monto: pagoPaginfo.monto, 
@@ -189,22 +228,58 @@ export default function PagoSocio() {
         turnoId: turnoId,
         metodoPago: 'TARJETA_CREDITO'
       }
+      
+      // Si es cuota práctica, agregar los detalles de las cuotas seleccionadas
+      if (tipo === 'CUOTA_PRACTICA') {
+        const cuotasSeleccionadas = Array.from(selectedCuotas).map(cuotaId => {
+          const cuota = cuotasPractica.find(c => c.id === cuotaId)
+          return {
+            id: cuotaId,
+            nombre: cuota?.nombrePractica || 'Práctica',
+            precio: cuota?.precio || 0
+          }
+        })
+        payload.cuotasSeleccionadas = cuotasSeleccionadas
+      }
+      
       const res = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) {
   setMensaje({ tipo: 'error', texto: data.error || 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
   setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
+  setLoading(false)
   return
       }
       // éxito
-  setMensaje({ tipo: 'success', texto: '¡Pago realizado con éxito! Tu reserva está confirmada.' })
-      // Limpiar sessionStorage
-      sessionStorage.removeItem('reservaPendiente')
-      // redirigir al panel principal del socio después de mostrar toast
-      setTimeout(() => router.push('/socio'), 1500)
+      if (tipo === 'CUOTA_PRACTICA') {
+        // Guardar datos de pago en sessionStorage para la página de éxito
+        sessionStorage.setItem('pagoCuotaPractica', JSON.stringify({
+          pagoId: data.pagoId,
+          montoTotal: data.montoTotal,
+          cantidadCuotas: data.cantidadCuotas,
+          cuotasSeleccionadas: Array.from(selectedCuotas).map(cuotaId => {
+            const cuota = cuotasPractica.find(c => c.id === cuotaId)
+            return {
+              id: cuotaId,
+              nombre: cuota?.nombrePractica || 'Práctica',
+              precio: cuota?.precio || 0
+            }
+          }),
+          fecha: new Date().toLocaleString('es-ES')
+        }))
+        // Redirigir a la página de éxito para cuota práctica
+        router.push(`/socio/pagoExitoso?pagoId=${data.pagoId}`)
+      } else {
+        setMensaje({ tipo: 'success', texto: '¡Pago realizado con éxito! Tu reserva está confirmada.' })
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('reservaPendiente')
+        // redirigir al panel principal del socio después de mostrar toast
+        setTimeout(() => router.push('/socio'), 1500)
+      }
     } catch (err) {
   setMensaje({ tipo: 'error', texto: 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' })
   setForm({ titular: '', numero: '', vencimiento: '', cvv: '' })
+  setLoading(false)
     } finally {
       setLoading(false)
     }
@@ -221,6 +296,55 @@ export default function PagoSocio() {
         <h1 className="text-3xl font-bold text-gray-900">{pagoPaginfo.concepto}</h1>
         <p className="text-sm text-gray-500 mt-2">{pagoPaginfo.descripcion}</p>
       </div>
+
+      {tipo === 'CUOTA_PRACTICA' && cuotasPractica.length > 0 && (
+        <div className="max-w-md mx-auto bg-white rounded-xl p-8 shadow-sm border border-gray-200 mb-6">
+          <h3 className="text-lg font-semibold mb-4">Prácticas Pendientes de Pago</h3>
+          <div className="space-y-3">
+            {cuotasPractica.map(cuota => (
+              <div key={cuota.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg">
+                <input
+                  type="checkbox"
+                  id={`cuota-${cuota.id}`}
+                  checked={selectedCuotas.has(cuota.id)}
+                  onChange={(e) => {
+                    const newSelected = new Set(selectedCuotas)
+                    if (e.target.checked) {
+                      newSelected.add(cuota.id)
+                    } else {
+                      newSelected.delete(cuota.id)
+                    }
+                    setSelectedCuotas(newSelected)
+                  }}
+                  className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300"
+                />
+                <label htmlFor={`cuota-${cuota.id}`} className="flex-1 cursor-pointer">
+                  <div className="font-medium text-gray-900">{cuota.nombrePractica}</div>
+                  <div className="text-sm text-gray-600">{cuota.periodo}</div>
+                  <div className="text-sm font-semibold text-gray-900">${cuota.precio.toFixed(2)}</div>
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-gray-900">Total a pagar:</span>
+              <span className="text-xl font-bold text-blue-600">
+                ${Array.from(selectedCuotas).reduce((sum, cuotaId) => {
+                  const cuota = cuotasPractica.find(c => c.id === cuotaId)
+                  return sum + (cuota?.precio || 0)
+                }, 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tipo === 'CUOTA_PRACTICA' && cuotasPractica.length === 0 && (
+        <div className="max-w-md mx-auto bg-white rounded-xl p-8 shadow-sm border border-gray-200 mb-6">
+          <p className="text-center text-gray-600">No hay cuotas pendientes de pago.</p>
+        </div>
+      )}
 
       <div className="max-w-md mx-auto bg-white rounded-xl p-8 shadow-sm border border-gray-200">
         <h3 className="text-2xl font-semibold mb-8 text-center">Tarjeta</h3>
