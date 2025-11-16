@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 
 // Definir los enums
 const RolUsuario = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
   ADMIN: 'ADMIN',
   SOCIO: 'SOCIO',
   ENTRENADOR: 'ENTRENADOR'
@@ -139,6 +140,7 @@ export async function crearUsuarios() {
     console.log('  Contraseña: Carlos123!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
+    return { admin, socio1, socio2, socio3, entrenador }
   } catch (error) {
     console.error('❌ Error creando usuarios:', error)
     throw error
@@ -149,6 +151,7 @@ export async function crearUsuarios() {
 if (require.main === module) {
   crearUsuarios()
     .then(async () => {
+      console.log('\n🎉 Proceso de seeding completado!')
       await prisma.$disconnect()
       process.exit(0)
     })

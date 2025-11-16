@@ -90,16 +90,18 @@ export default function Sidebar() {
       subItems: [
         { label: 'Registrar Cancha', href: '/admin/altaCancha' },
         { label: 'Modificar Cancha', href: '/admin/modifCancha' },
-        { label: 'Eliminar Cancha', href: '/admin/bajaCancha' }
+        { label: 'Eliminar Cancha', href: '/admin/bajaCancha' },
+        { label: 'Reservas', href: '/admin/reservas' }
       ]
     },
     {
       icon: <Dumbbell size={20} />,
       label: 'Prácticas Deportivas',
       subItems: [
-        { label: 'Registrar Práctica', href: '/admin/altaPractica' },
-        { label: 'Modificar Práctica', href: '/admin/modifPractica' },
-        { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' }
+        { label: 'Registrar Práctica', href: '/admin/practicas/altaPractica' },
+        { label: 'Modificar Práctica', href: '/admin/practicas/modifPractica' },
+        { label: 'Eliminar Práctica', href: '/admin/practicas/eliminar' },
+        { label: 'Consultar Inscripciones', href: '/admin/practicas/consultarInscripciones' }
       ]
     },
     {

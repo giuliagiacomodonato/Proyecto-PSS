@@ -53,8 +53,10 @@ export default function AltaEntrenadorPage() {
   }, [])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    validateField(field, value)
+    // Si es DNI, aceptar solo dígitos (máx 8)
+    const newValue = field === 'dni' ? value.replace(/\D/g, '').slice(0, 8) : value
+    setFormData(prev => ({ ...prev, [field]: newValue }))
+    validateField(field, newValue)
   }
 
   const validateField = (field: string, value: string) => {

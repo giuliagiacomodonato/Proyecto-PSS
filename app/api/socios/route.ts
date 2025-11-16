@@ -263,50 +263,86 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const planId = searchParams.get('planId');
     const dni = searchParams.get('dni');
     const email = searchParams.get('email');
 
-    if (!dni && !email) {
-      return NextResponse.json(
-        { message: 'Se requiere DNI o email para la búsqueda' },
-        { status: 400 }
-      );
+    // Si se solicita por planId, devolver miembros del plan familiar
+    if (planId) {
+      const miembros = await prisma.usuario.findMany({
+        where: {
+          planFamiliarId: planId,
+          rol: 'SOCIO'
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          esMenorDe12: true
+        }
+      });
+
+      return NextResponse.json({ miembros });
     }
 
-    const whereClause: any = {};
-    if (dni) whereClause.dni = dni;
-    if (email) whereClause.email = email;
+    // Si vienen dni o email, hacemos la búsqueda puntual (comportamiento previo)
+    if (dni || email) {
+      const whereClause: any = {};
+      if (dni) whereClause.dni = dni;
+      if (email) whereClause.email = email;
 
-    const socio = await prisma.usuario.findFirst({
-      where: {
-        ...whereClause,
-        rol: 'SOCIO'
-      },
+      const socio = await prisma.usuario.findFirst({
+        where: {
+          ...whereClause,
+          rol: 'SOCIO'
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          email: true,
+          telefono: true,
+          direccion: true,
+          fechaNacimiento: true,
+          tipoSocio: true,
+          planFamiliarId: true,
+          fechaAlta: true,
+          esMenorDe12: true
+        }
+      });
+
+      if (socio) {
+        return NextResponse.json({ existe: true, socio: socio });
+      } else {
+        return NextResponse.json({ existe: false });
+      }
+    }
+
+    // Si no vienen params, devolver una lista resumida de socios para el dashboard
+    // Limitamos la respuesta para evitar payloads enormes
+    const limit = Number(searchParams.get('limit') || 100);
+    const offset = Number(searchParams.get('offset') || 0);
+
+    const socios = await prisma.usuario.findMany({
+      where: { rol: 'SOCIO' },
       select: {
         id: true,
         nombre: true,
-        dni: true,
         email: true,
+        dni: true,
         telefono: true,
-        direccion: true,
-        fechaNacimiento: true,
         tipoSocio: true,
         planFamiliarId: true,
-        fechaAlta: true,
-        esMenorDe12: true
-      }
+        fechaAlta: true
+      },
+      orderBy: { fechaAlta: 'desc' },
+      skip: offset,
+      take: limit
     });
 
-    if (socio) {
-      return NextResponse.json({
-        existe: true,
-        socio: socio
-      });
-    } else {
-      return NextResponse.json({
-        existe: false
-      });
-    }
+    const total = await prisma.usuario.count({ where: { rol: 'SOCIO' } });
+
+    return NextResponse.json({ socios, total, limit, offset });
 
   } catch (error) {
     console.error('Error al buscar socio:', error);
@@ -460,8 +496,8 @@ export async function PATCH(request: NextRequest) {
     // Si se está cambiando de FAMILIAR a INDIVIDUAL
     else if (tipoSocio === 'INDIVIDUAL' && socioExistente.tipoSocio === 'FAMILIAR' && socioExistente.planFamiliarId) {
       console.log('Buscando integrantes del plan familiar:', socioExistente.planFamiliarId);
-      
-      // Contar cuántos socios quedarían en el plan familiar (sin contar al que se está modificando)
+
+      // Obtener todos los integrantes del plan familiar (excluyendo al que se modifica)
       const integrantesPlanFamiliar = await prisma.usuario.findMany({
         where: {
           planFamiliarId: socioExistente.planFamiliarId,
@@ -476,59 +512,52 @@ export async function PATCH(request: NextRequest) {
         }
       });
 
-      console.log('Integrantes restantes después de sacar este socio:', integrantesPlanFamiliar.length);
+      console.log('Integrantes encontrados en el plan familiar (excluyendo cabeza):', integrantesPlanFamiliar.length);
 
-      // Si quedan menos de 3 integrantes (porque uno se va), convertir a todos a INDIVIDUAL
-      // La regla dice que un plan familiar debe tener al menos 3 integrantes
-      // Si quedan 2 o menos, ya no es válido como plan familiar
-      if (integrantesPlanFamiliar.length < 3 && integrantesPlanFamiliar.length > 0) {
-        console.log('Quedan menos de 3 integrantes. Convirtiendo adultos a INDIVIDUAL y eliminando menores...');
-        
-        for (const integrante of integrantesPlanFamiliar) {
-          // Si es menor de 12 años, eliminarlo (no puede tener cuenta individual)
-          if (integrante.esMenorDe12) {
-            console.log(`⚠️ Eliminando menor: ${integrante.nombre} (ID: ${integrante.id}) - Los menores no pueden tener cuenta individual`);
-            
-            // Registrar la baja del menor
-            await prisma.usuarioBaja.create({
-              data: {
-                usuarioEliminadoId: integrante.id,
-                usuarioEliminadoNombre: integrante.nombre,
-                usuarioEliminadoDni: integrante.dni,
-                usuarioEliminadoEmail: socioExistente.email, // Usaba el email del cabeza de familia
-                rolUsuarioEliminado: 'SOCIO',
-                realizadoPorId: null,
-                realizadoPorNombre: '',
-                realizadoPorDni: '',
-                motivo: `Eliminado automáticamente por conversión de plan familiar a individual (menor de 12 años sin cuenta)`
-              }
-            });
-            
-            // Eliminar al menor
-            await prisma.usuario.delete({
-              where: { id: integrante.id }
-            });
-            
-            sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - ELIMINADO (menor de 12 años)`);
-          } else {
-            // Si es mayor de 12 años, convertir a INDIVIDUAL
-            console.log(`Convirtiendo a ${integrante.nombre} (ID: ${integrante.id}) a INDIVIDUAL`);
-            await prisma.usuario.update({
-              where: { id: integrante.id },
-              data: {
-                tipoSocio: 'INDIVIDUAL',
-                planFamiliarId: null,
-                familiarId: null
-              }
-            });
-            sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - Convertido a INDIVIDUAL`);
-          }
+      // Procesar TODOS los integrantes: los mayores se convierten a INDIVIDUAL, los menores se eliminan
+      for (const integrante of integrantesPlanFamiliar) {
+        if (integrante.esMenorDe12) {
+          console.log(`⚠️ Eliminando menor: ${integrante.nombre} (ID: ${integrante.id}) - Los menores no pueden tener cuenta individual`);
+
+          // Registrar la baja del menor
+          await prisma.usuarioBaja.create({
+            data: {
+              usuarioEliminadoId: integrante.id,
+              usuarioEliminadoNombre: integrante.nombre,
+              usuarioEliminadoDni: integrante.dni,
+              usuarioEliminadoEmail: socioExistente.email,
+              rolUsuarioEliminado: 'SOCIO',
+              realizadoPorId: null,
+              realizadoPorNombre: '',
+              realizadoPorDni: '',
+              motivo: `Eliminado automáticamente por conversión de plan familiar a individual (menor de 12 años sin cuenta)`
+            }
+          });
+
+          // Eliminar al menor
+          await prisma.usuario.delete({ where: { id: integrante.id } });
+
+          sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - ELIMINADO (menor de 12 años)`);
+        } else {
+          console.log(`Convirtiendo a ${integrante.nombre} (ID: ${integrante.id}) a INDIVIDUAL`);
+          await prisma.usuario.update({
+            where: { id: integrante.id },
+            data: {
+              tipoSocio: 'INDIVIDUAL',
+              planFamiliarId: null,
+              familiarId: null
+            }
+          });
+
+          sociosConvertidos.push(`${integrante.nombre} (DNI: ${integrante.dni}) - Convertido a INDIVIDUAL`);
         }
+      }
 
-        mensaje = `Socio actualizado exitosamente. Como el plan familiar quedó con menos de 3 integrantes, se procesaron ${sociosConvertidos.length} socio(s) adicional(es)`;
-        console.log('Todos los integrantes procesados');
-      } else if (integrantesPlanFamiliar.length === 0) {
+      if (integrantesPlanFamiliar.length === 0) {
         console.log('No quedan más integrantes en el plan familiar');
+      } else {
+        mensaje = `Socio actualizado exitosamente. Se procesaron ${sociosConvertidos.length} integrante(s) del plan familiar.`;
+        console.log('Todos los integrantes procesados');
       }
     }
     
@@ -684,6 +713,77 @@ export async function DELETE(request: NextRequest) {
       }
 
       console.log(`✅ Grupo familiar completo eliminado: ${sociosEliminados} socio(s)`);
+    }
+    // CASO 2: Si es miembro del grupo familiar (tiene planFamiliarId Y tiene familiarId)
+    // Criterio F1-8: Convertir resto a INDIVIDUAL (si mayores) o ELIMINAR (si menores)
+    else if (socio.tipoSocio === 'FAMILIAR' && socio.planFamiliarId && socio.familiarId) {
+      console.log(`🔄 Eliminando miembro NO-cabeza de grupo familiar: ${socio.nombre} (planFamiliarId: ${socio.planFamiliarId})`);
+
+      // Buscar todos los miembros del grupo familiar (excluyendo al que se elimina)
+      const miembrosGrupo = await prisma.usuario.findMany({
+        where: {
+          planFamiliarId: socio.planFamiliarId,
+          rol: 'SOCIO',
+          id: { not: socio.id }
+        },
+        select: {
+          id: true,
+          nombre: true,
+          dni: true,
+          email: true,
+          rol: true,
+          esMenorDe12: true,
+          familiarId: true
+        }
+      });
+
+      console.log(`📋 Encontrados ${miembrosGrupo.length} miembros restantes en el grupo familiar`);
+
+      // Procesar cada miembro restante: disolver el grupo y
+      // convertir a los mayores a INDIVIDUAL y eliminar a los menores.
+      // Esto aplica siempre cuando se elimina un miembro perteneciente a un plan familiar,
+      // cumpliendo el criterio: la estructura de grupo deja de existir y los miembros
+      // quedan como socios individuales si son mayores, los menores se eliminan.
+      console.log(`⚠️ Procesando ${miembrosGrupo.length} miembro(s) restantes del plan ${socio.planFamiliarId} para disolución...`);
+      for (const miembro of miembrosGrupo) {
+        if (miembro.esMenorDe12) {
+          console.log(`   🗑️ Eliminando menor: ${miembro.nombre} (DNI: ${miembro.dni})`);
+
+          // Registrar la baja del menor
+          await prisma.usuarioBaja.create({
+            data: {
+              usuarioEliminadoId: miembro.id,
+              usuarioEliminadoNombre: miembro.nombre,
+              usuarioEliminadoDni: miembro.dni,
+              usuarioEliminadoEmail: miembro.email,
+              rolUsuarioEliminado: miembro.rol,
+              realizadoPorId: null,
+              realizadoPorNombre: '',
+              realizadoPorDni: '',
+              motivo: `Eliminado automáticamente por disolución de grupo familiar (menor de 12 años)`
+            }
+          });
+
+          // Eliminar el menor
+          await prisma.usuario.delete({ where: { id: miembro.id } });
+          nombresEliminados.push(`${miembro.nombre} (menor)`);
+          sociosEliminados++;
+        } else {
+          console.log(`   🔄 Convirtiendo a INDIVIDUAL: ${miembro.nombre} (DNI: ${miembro.dni})`);
+
+          // Convertir a INDIVIDUAL
+          await prisma.usuario.update({
+            where: { id: miembro.id },
+            data: {
+              tipoSocio: 'INDIVIDUAL',
+              planFamiliarId: null,
+              familiarId: null
+            }
+          });
+
+          nombresEliminados.push(`${miembro.nombre} (convertido a individual)`);
+        }
+      }
     }
 
     // Registrar la baja del socio principal

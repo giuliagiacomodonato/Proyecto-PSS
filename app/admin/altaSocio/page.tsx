@@ -77,6 +77,12 @@ export default function AltaSocioPage() {
   const [showConversionConfirm, setShowConversionConfirm] = useState(false);
   const [pendingConversionEntry, setPendingConversionEntry] = useState<any | null>(null);
 
+  // NUEVO: estado para búsqueda por DNI dentro del modal
+  const [buscarDni, setBuscarDni] = useState('')
+  const [buscandoDni, setBuscandoDni] = useState(false)
+  const [resultadoBusqueda, setResultadoBusqueda] = useState<any | null>(null) // user obj or null if not existe
+  const [busquedaRealizada, setBusquedaRealizada] = useState(false)
+
   // Validaciones
   const validateField = (name: string, value: string): string => {
     switch (name) {
@@ -123,13 +129,15 @@ export default function AltaSocioPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Si es DNI, permitir solo dígitos y máximo 8 caracteres
+    const newValue = name === 'dni' ? value.replace(/\D/g, '').slice(0, 8) : value;
+    setFormData(prev => ({ ...prev, [name]: newValue }));
     
     // Validar en tiempo real
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
   };
-
+  
   const handleTipoSocioChange = (tipo: 'INDIVIDUAL' | 'FAMILIAR') => {
     setFormData(prev => ({ ...prev, tipoSocio: tipo }));
     if (tipo === 'INDIVIDUAL') {
@@ -166,12 +174,20 @@ export default function AltaSocioPage() {
   };
 
   const handleFamiliarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
+
+    // Si estamos en la etapa de búsqueda por DNI y se edita el campo DNI, actualizar estado de búsqueda
+    if (name === 'dni' && !busquedaRealizada) {
+      const digits = value.replace(/\D/g, '').slice(0, 8)
+      setBuscarDni(digits)
+      setFamiliarForm(prev => ({ ...prev, dni: digits }))
+      return
+    }
     
-    // Calcular edad si es el campo de fecha de nacimiento
+    // mantener la lógica previa de actualización y cálculo de edad
     if (name === 'fechaNacimiento') {
-      const edad = calcularEdad(value);
-      const esMenor = edad < 12;
+      const edad = calcularEdad(value)
+      const esMenor = edad < 12
       
       setFamiliarForm(prev => ({
         ...prev,
@@ -194,6 +210,39 @@ export default function AltaSocioPage() {
     }
   };
 
+  // NUEVO: buscar socio por DNI desde el modal
+  const buscarSocioPorDni = async () => {
+    // asegurarse que el dni usado para buscar solo tenga dígitos
+    const dni = (buscarDni || familiarForm.dni || '').replace(/\D/g, '').slice(0,8).trim()
+    if (!dni) {
+      setFamiliarErrors(prev => ({ ...prev, dni: 'Ingrese un DNI para buscar' }))
+      return
+    }
+    setBuscandoDni(true)
+    setResultadoBusqueda(null)
+    setBusquedaRealizada(false)
+    // Eliminar claves previas 'dni' y 'general' en lugar de asignar undefined
+    setFamiliarErrors(prev => {
+      const { dni, general, ...rest } = prev
+      return rest
+    })
+    try {
+      const res = await fetch(`/api/socios?dni=${encodeURIComponent(dni)}`)
+      const data = await res.json()
+      if (res.ok && data.existe && data.socio) {
+        setResultadoBusqueda(data.socio) // socio encontrado
+      } else {
+        setResultadoBusqueda(null) // no existe en DB
+      }
+      setBusquedaRealizada(true)
+    } catch (err) {
+      setFamiliarErrors(prev => ({ ...prev, general: 'Error al consultar DNI' }))
+    } finally {
+      setBuscandoDni(false)
+    }
+  }
+
+  // Validar todos los campos
   const validateFamiliarField = (field: string, value: string) => {
     const newErrors = { ...familiarErrors };
     
@@ -305,66 +354,72 @@ export default function AltaSocioPage() {
     return true;
   };
 
+  // Ajustar guardado de familiar según resultado de la búsqueda
   const handleSaveFamiliar = async () => {
-    // Validar todos los campos
-    validateFamiliarField('nombre', familiarForm.nombre);
-    validateFamiliarField('dni', familiarForm.dni);
-    validateFamiliarField('fechaNacimiento', familiarForm.fechaNacimiento);
-    
-    if (!familiarForm.esMenorDe12) {
-      validateFamiliarField('email', familiarForm.email);
-      validateFamiliarField('telefono', familiarForm.telefono);
-      validateFamiliarField('contraseña', familiarForm.contraseña);
+    // Validación adicional: asegurar que el DNI tenga 7 u 8 dígitos antes de proceder
+    const dniToCheck = busquedaRealizada && resultadoBusqueda
+      ? String(resultadoBusqueda.dni || '').replace(/\D/g, '').slice(0,8)
+      : String(familiarForm.dni || '').replace(/\D/g, '').slice(0,8)
+
+    if (!/^\d{7,8}$/.test(dniToCheck)) {
+      setFamiliarErrors(prev => ({ ...prev, dni: 'El DNI debe tener 7 u 8 dígitos' }))
+      return
     }
 
-    // Si el formulario no es válido, no continuar
-    if (!isFamiliarFormValid()) {
-      return;
-    }
-
-    // Validar edad del cabeza de familia
-    const edadPrincipal = calcularEdad(formData.fechaNacimiento);
-    if (edadPrincipal < 12) {
-      setFamiliarErrors({ general: 'El cabeza de familia debe tener al menos 12 años' });
-      return;
-    }
-
-    // Verificar DNI en la base de datos
-    try {
-      const response = await fetch(`/api/socios?dni=${familiarForm.dni}`);
-      const data = await response.json();
-
-      if (data.existe) {
-        const socioExistente = data.socio;
-
-        // Si ya pertenece a un plan familiar, no se puede agregar
-        if (socioExistente.tipoSocio === 'FAMILIAR') {
-          setFamiliarErrors(prev => ({ ...prev, dni: 'El socio ingresado ya pertenece a un grupo familiar' }));
-          return;
-        }
-
-        // Si está registrado con plan individual, preguntar si se desea convertirlo
-        if (socioExistente.tipoSocio === 'INDIVIDUAL') {
-          // Instead of native confirm(), show an inline confirmation modal (toast-like)
-          setPendingConversionEntry(socioExistente);
-          setShowConversionConfirm(true);
-          return;
-        }
+    // Si búsqueda realizada y existe en DB
+    if (busquedaRealizada && resultadoBusqueda) {
+      // Si pertenece a otro plan familiar -> error
+      if (resultadoBusqueda.tipoSocio === 'FAMILIAR') {
+        setFamiliarErrors(prev => ({ ...prev, dni: 'El socio ingresado ya pertenece a un plan familiar' }));
+        return;
       }
-    } catch (error) {
-      console.error('Error al verificar DNI:', error);
-      // Continuar si hay error en la verificación
+      // Si es INDIVIDUAL -> marcar conversión y agregar
+      if (resultadoBusqueda.tipoSocio === 'INDIVIDUAL') {
+        const existingEntry: any = {
+          id: resultadoBusqueda.id,
+          nombre: resultadoBusqueda.nombre,
+          dni: String(resultadoBusqueda.dni).replace(/\D/g, '').slice(0,8),
+          fechaNacimiento: resultadoBusqueda.fechaNacimiento,
+          email: resultadoBusqueda.email,
+          telefono: resultadoBusqueda.telefono,
+          esMenorDe12: resultadoBusqueda.esMenorDe12 ?? false,
+          existing: true
+        }
+        setFamiliares(prev => [...prev, existingEntry as unknown as FamiliarData])
+        setShowModalFamiliar(false)
+        setFamiliarErrors({})
+        setResultadoBusqueda(null)
+        setBusquedaRealizada(false)
+        setBuscarDni('')
+        setMensaje('Socio existente agregado y marcado para conversión')
+        setMensajeTipo('success')
+        return
+      }
     }
 
-    // Si no existe en la DB, agregar como nuevo familiar normal
-    setFamiliares(prev => [...prev, familiarForm]);
-    setShowModalFamiliar(false);
-    setFamiliarErrors({});
-    setMensaje('Familiar agregado exitosamente');
-    setMensajeTipo('success');
-  };
+    // Si no existe en DB -> validar formulario y agregar nuevo familiar
+    validateFamiliarField('nombre', familiarForm.nombre)
+    validateFamiliarField('dni', familiarForm.dni)
+    validateFamiliarField('fechaNacimiento', familiarForm.fechaNacimiento)
+    if (!familiarForm.esMenorDe12) {
+      validateFamiliarField('email', familiarForm.email)
+      validateFamiliarField('telefono', familiarForm.telefono)
+      validateFamiliarField('contraseña', familiarForm.contraseña)
+    }
 
-  // When user confirms conversion in-modal, add the pending conversion entry
+    if (!isFamiliarFormValid()) return
+
+    // Agregar al listado local
+    setFamiliares(prev => [...prev, { ...familiarForm, dni: String(familiarForm.dni).replace(/\D/g, '').slice(0,8) }])
+    setShowModalFamiliar(false)
+    setFamiliarErrors({})
+    setMensaje('Familiar agregado exitosamente')
+    setMensajeTipo('success')
+    setResultadoBusqueda(null)
+    setBusquedaRealizada(false)
+    setBuscarDni('')
+  }
+
   const confirmConversion = () => {
     if (!pendingConversionEntry) return;
     const socioExistente = pendingConversionEntry;
@@ -760,197 +815,116 @@ export default function AltaSocioPage() {
 
         {/* Modal para agregar familiar */}
         {showModalFamiliar && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-20 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Registrar Familiar</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre Completo *
-                  </label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={familiarForm.nombre}
-                    onChange={handleFamiliarInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      familiarErrors.nombre ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {familiarErrors.nombre && <p className="text-red-500 text-sm mt-1">{familiarErrors.nombre}</p>}
-                </div>
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-20 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Agregar miembro al grupo familiar</h2>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    DNI *
-                  </label>
+              {/* Paso 1: Buscar por DNI */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
                   <input
                     type="text"
                     name="dni"
-                    value={familiarForm.dni}
-                    onChange={handleFamiliarInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      familiarErrors.dni ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    value={buscarDni || familiarForm.dni}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0,8)
+                      setBuscarDni(digits)
+                      setFamiliarForm(prev => ({ ...prev, dni: digits }))
+                      setResultadoBusqueda(null)
+                      setBusquedaRealizada(false)
+                    }}
+                    className="w-full px-3 py-2 border rounded-md"
+                    placeholder="Ingrese DNI y presione Buscar"
                   />
-                  {familiarErrors.dni && <p className="text-red-500 text-sm mt-1">{familiarErrors.dni}</p>}
+                  {familiarErrors.dni && <p className="text-sm text-red-500 mt-1">{familiarErrors.dni}</p>}
                 </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Nacimiento *
-                  </label>
-                  <input
-                    type="date"
-                    name="fechaNacimiento"
-                    value={familiarForm.fechaNacimiento}
-                    onChange={handleFamiliarInputChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      familiarErrors.fechaNacimiento ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {familiarErrors.fechaNacimiento && <p className="text-red-500 text-sm mt-1">{familiarErrors.fechaNacimiento}</p>}
-                  {familiarForm.fechaNacimiento && familiarForm.esMenorDe12 && (
-                    <p className="text-sm text-blue-600 mt-1">
-                      ⚠️ Menor de 12 años: No se creará cuenta. Se usarán los datos del cabeza de familia.
-                    </p>
-                  )}
+                <div>
+                  <button
+                    type="button"
+                    onClick={buscarSocioPorDni}
+                    disabled={buscandoDni}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    {buscandoDni ? 'Buscando...' : 'Buscar DNI'}
+                  </button>
                 </div>
-
-                {!familiarForm.esMenorDe12 && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Correo Electrónico *
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={familiarForm.email}
-                        onChange={handleFamiliarInputChange}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          familiarErrors.email ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {familiarErrors.email && <p className="text-red-500 text-sm mt-1">{familiarErrors.email}</p>}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teléfono de Contacto *
-                      </label>
-                      <input
-                        type="tel"
-                        name="telefono"
-                        value={familiarForm.telefono}
-                        onChange={handleFamiliarInputChange}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          familiarErrors.telefono ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {familiarErrors.telefono && <p className="text-red-500 text-sm mt-1">{familiarErrors.telefono}</p>}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Fecha de Registro
-                      </label>
-                      <input
-                        type="text"
-                        value={new Date().toLocaleDateString('es-ES')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                        readOnly
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Contraseña *
-                      </label>
-                      <input
-                        type="password"
-                        name="contraseña"
-                        value={familiarForm.contraseña}
-                        onChange={handleFamiliarInputChange}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          familiarErrors.contraseña ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial"
-                      />
-                      {familiarErrors.contraseña && <p className="text-red-500 text-sm mt-1">{familiarErrors.contraseña}</p>}
-                    </div>
-                  </>
-                )}
-
-                {familiarForm.esMenorDe12 && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Correo Electrónico (del cabeza de familia)
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                        readOnly
-                        disabled
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Se usa el email del cabeza de familia automáticamente</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teléfono (del cabeza de familia)
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.telefono}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                        readOnly
-                        disabled
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Se usa el teléfono del cabeza de familia automáticamente</p>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <p className="text-sm text-blue-800">
-                          📝 <strong>Nota:</strong> Este menor de 12 años no tendrá cuenta de acceso al sistema. Solo se registrarán sus datos básicos en el grupo familiar.
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
 
-              {familiarErrors.general && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{familiarErrors.general}</p>
+              {/* Resultado de búsqueda */}
+              {busquedaRealizada && (
+                <div className="mb-4">
+                  {resultadoBusqueda ? (
+                    <div className="p-4 bg-gray-50 rounded border">
+                      <p className="font-medium text-gray-900">Socio encontrado:</p>
+                      <p className="text-sm text-gray-700">Nombre: {resultadoBusqueda.nombre}</p>
+                      <p className="text-sm text-gray-700">DNI: {resultadoBusqueda.dni}</p>
+                      <p className="text-sm text-gray-700">Tipo actual: {resultadoBusqueda.tipoSocio}</p>
+                      {resultadoBusqueda.tipoSocio === 'FAMILIAR' ? (
+                        <p className="mt-2 text-sm text-red-600">Este socio ya pertenece a un plan familiar y no puede agregarse.</p>
+                      ) : (
+                        <p className="mt-2 text-sm text-green-700">Puede convertir y agregar este socio al plan familiar.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-yellow-50 rounded border">
+                      <p className="text-sm text-gray-700">No existe un socio con ese DNI. Complete los datos para crearlo y asignarlo al plan familiar.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="flex space-x-4 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowModalFamiliar(false)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveFamiliar}
-                  disabled={!isFamiliarFormValid()}
-                  className={`px-6 py-2 rounded-md focus:outline-none focus:ring-2 transition-colors ${
-                    isFamiliarFormValid()
-                      ? 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-500'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  ✓ Registrar
-                </button>
+              {/* Si no existe: mostrar inputs para crear nuevo familiar. 
+                  Si existe e INDIVIDUAL: mostrar botón para convertir (handled in handleSaveFamiliar) */}
+              {(!busquedaRealizada || !resultadoBusqueda) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input type="text" name="nombre" value={familiarForm.nombre} onChange={handleFamiliarInputChange} className="w-full px-3 py-2 border rounded-md" />
+                    {familiarErrors.nombre && <p className="text-sm text-red-500 mt-1">{familiarErrors.nombre}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+                    <input type="date" name="fechaNacimiento" value={familiarForm.fechaNacimiento} onChange={handleFamiliarInputChange} className="w-full px-3 py-2 border rounded-md" />
+                    {familiarErrors.fechaNacimiento && <p className="text-sm text-red-500 mt-1">{familiarErrors.fechaNacimiento}</p>}
+                    {familiarForm.fechaNacimiento && familiarForm.esMenorDe12 && <p className="text-xs text-blue-600 mt-1">Menor de 12 años: no se creará cuenta de acceso.</p>}
+                  </div>
+
+                  {!familiarForm.esMenorDe12 && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" value={familiarForm.email} onChange={handleFamiliarInputChange} className="w-full px-3 py-2 border rounded-md" />
+                        {familiarErrors.email && <p className="text-sm text-red-500 mt-1">{familiarErrors.email}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                        <input type="text" name="telefono" value={familiarForm.telefono} onChange={handleFamiliarInputChange} className="w-full px-3 py-2 border rounded-md" />
+                        {familiarErrors.telefono && <p className="text-sm text-red-500 mt-1">{familiarErrors.telefono}</p>}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input type="password" name="contraseña" value={familiarForm.contraseña} onChange={handleFamiliarInputChange} className="w-full px-3 py-2 border rounded-md" />
+                        {familiarErrors.contraseña && <p className="text-sm text-red-500 mt-1">{familiarErrors.contraseña}</p>}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Mensaje de error general */}
+              {familiarErrors.general && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">{familiarErrors.general}</div>}
+
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => { setShowModalFamiliar(false); setResultadoBusqueda(null); setBusquedaRealizada(false); setBuscarDni(''); }} className="px-4 py-2 border rounded-md">Cancelar</button>
+
+                {/* Si hubo búsqueda y el socio existe y es INDIVIDUAL -> permitir convertir y agregar */}
+                {busquedaRealizada && resultadoBusqueda && resultadoBusqueda.tipoSocio === 'INDIVIDUAL' ? (
+                  <button type="button" onClick={handleSaveFamiliar} className="px-4 py-2 bg-green-600 text-white rounded-md">Convertir y agregar</button>
+                ) : (
+                  // En los demás casos (no existe o búsqueda no realizada) permitir guardar nuevo familiar
+                  <button type="button" onClick={handleSaveFamiliar} className="px-4 py-2 bg-blue-600 text-white rounded-md">Agregar Familiar</button>
+                )}
               </div>
             </div>
           </div>

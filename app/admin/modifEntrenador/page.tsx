@@ -342,7 +342,7 @@ function ModifEntrenadorContent() {
                   id="searchDni"
                   placeholder="Ingrese el DNI"
                   value={searchDni}
-                  onChange={(e) => setSearchDni(e.target.value)}
+                  onChange={(e) => setSearchDni(e.target.value.replace(/\D/g, '').slice(0,8))}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   disabled={searching}
                 />
