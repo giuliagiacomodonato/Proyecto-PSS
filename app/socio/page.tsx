@@ -42,6 +42,15 @@ interface Cuota {
   vencimiento: string
 }
 
+interface CuotaPractica {
+  id: number
+  practicaDeportivaId: number
+  nombrePractica: string
+  precio: number
+  periodo: string
+  estado: 'PAGADA' | 'IMPAGA'
+}
+
 interface UserData {
   id: number
   nombre: string
@@ -60,6 +69,7 @@ interface DashboardData {
 export default function SocioPage() {
   const router = useRouter()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [cuotasPractica, setCuotasPractica] = useState<CuotaPractica[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedPractica, setSelectedPractica] = useState<Practica | null>(null)
@@ -97,6 +107,13 @@ export default function SocioPage() {
 
         const data = await response.json()
         setDashboardData(data)
+
+        // Obtener cuotas de prácticas
+        const cuotasResponse = await fetch(`/api/socios/cuotas-practica?usuarioId=${usuario.id}`)
+        if (cuotasResponse.ok) {
+          const cuotasData = await cuotasResponse.json()
+          setCuotasPractica(cuotasData.cuotasPractica || [])
+        }
       } catch (err) {
         console.error('Error al cargar datos del dashboard:', err)
         setError('Error al conectar con el servidor')
@@ -256,46 +273,77 @@ export default function SocioPage() {
                     </div>
                   </div>
                   <div className="divide-y divide-gray-200">
-                    {/* Cuota Socio del mes actual */}
-                    {cuotas && cuotas.length > 0 ? (
+                    {/* Cuota Socio */}
+                    {cuotas && cuotas.length > 0 && (
                       <>
-                        {cuotas.slice(0, 1).map((cuota) => (
-                          <div key={cuota.id} className="px-6 py-4">
+                        {cuotas.map((cuota) => (
+                          <Link
+                            key={cuota.id}
+                            href="/socio/pagoSocio?tipo=CUOTA_MENSUAL"
+                            className="px-6 py-4 hover:bg-gray-50 transition-colors block group"
+                          >
                             <div className="flex items-center justify-between mb-2">
-                              <p className="font-medium text-gray-900">Cuota Socio</p>
-                              {cuota.estado === 'pagado' ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  [paga]
-                                </span>
-                              ) : (
-                                <Link
-                                  href="/socio/pagoCuotaSocio"
-                                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors"
+                              <p className="font-medium text-gray-900">{cuota.tipo}</p>
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  cuota.estado === 'pagado'
+                                    ? 'bg-green-100 text-green-800'
+                                    : cuota.estado === 'vencido'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}
+                              >
+                                {cuota.estado === 'pagado' ? 'Pagado' : cuota.estado === 'vencido' ? 'Vencido' : 'Pendiente'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500">Vencimiento: {cuota.vencimiento}</p>
+                            <p className="text-lg font-semibold text-gray-900 mt-2">${cuota.monto.toLocaleString('es-AR')}</p>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Cuota Práctica */}
+                    {cuotasPractica && cuotasPractica.length > 0 && (
+                      <div className="divide-y divide-gray-200">
+                        <div className="px-6 py-3 bg-gray-100">
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Cuotas de Prácticas</p>
+                        </div>
+                        {cuotasPractica.map((cuota) => (
+                          <div
+                            key={cuota.id}
+                            className="px-6 py-4 hover:bg-gray-50 transition-colors block group"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-medium text-gray-900">{cuota.nombrePractica}</p>
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  cuota.estado === 'PAGADA'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {cuota.estado === 'PAGADA' ? 'Pagada' : 'Impaga'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500">{cuota.periodo}</p>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-lg font-semibold text-gray-900">${cuota.precio.toFixed(2)}</p>
+                              {cuota.estado === 'IMPAGA' && (
+                                <button
+                                  onClick={() => router.push('/socio/pagoSocio?tipo=CUOTA_PRACTICA')}
+                                  className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
                                 >
-                                  [impaga] - Pagar
-                                </Link>
+                                  Pagar
+                                </button>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500">Período: {cuota.tipo}</p>
-                            {cuota.estado !== 'pagado' && (
-                              <p className="text-sm text-gray-500">Vencimiento: {cuota.vencimiento}</p>
-                            )}
-                            <p className="text-lg font-semibold text-gray-900 mt-2">${cuota.monto.toLocaleString('es-AR')}</p>
                           </div>
                         ))}
-                        {/* Otras cuotas si existen */}
-                        {cuotas.length > 1 && (
-                          <div className="px-6 py-3 bg-gray-50">
-                            <Link
-                              href="/socio/pagoCuotaSocio"
-                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              Ver todas las cuotas ({cuotas.length})
-                            </Link>
-                          </div>
-                        )}
-                      </>
-                    ) : (
+                      </div>
+                    )}
+
+                    {!cuotas && cuotasPractica.length === 0 && (
                       <div className="px-6 py-8 text-center">
                         <p className="text-gray-500 text-sm">No hay cuotas pendientes</p>
                       </div>

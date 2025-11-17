@@ -219,6 +219,7 @@ enum TipoPago {
   RESERVA_CANCHA
   CUOTA_MENSUAL
   PRACTICA_DEPORTIVA
+  CUOTA_PRACTICA
 }
 
 enum MetodoPago {
