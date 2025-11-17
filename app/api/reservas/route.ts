@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Helper: check role from simple base64 token generated at login (id:timestamp)
+async function checkAdminRole(request: NextRequest) {
+  const auth = request.headers.get('authorization') || ''
+  if (!auth.startsWith('Bearer ')) return { ok: false, status: 401, message: 'Unauthorized' }
+  const token = auth.replace('Bearer ', '')
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf-8')
+    const parts = decoded.split(':')
+    const userId = Number(parts[0])
+    if (!userId) return { ok: false, status: 401, message: 'Unauthorized' }
+    const usuario = await prisma.usuario.findUnique({ where: { id: userId } })
+    if (!usuario) return { ok: false, status: 401, message: 'Unauthorized' }
+    if (usuario.rol !== 'ADMIN' && usuario.rol !== 'SUPER_ADMIN') {
+      return { ok: false, status: 403, message: 'Forbidden' }
+    }
+    return { ok: true, usuario }
+  } catch (e) {
+    return { ok: false, status: 401, message: 'Unauthorized' }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -103,6 +124,9 @@ export async function POST(request: NextRequest) {
 // Agregamos GET para devolver reservas/turnos activos (útil para dashboard)
 export async function GET(request: NextRequest) {
   try {
+    const authCheck = await checkAdminRole(request)
+    if (!authCheck.ok) return NextResponse.json({ message: authCheck.message }, { status: authCheck.status })
+
     const { searchParams } = new URL(request.url)
     const canchaIdParam = searchParams.get('canchaId')
     const fechaParam = searchParams.get('fecha')
@@ -133,7 +157,7 @@ export async function GET(request: NextRequest) {
         reservado: true,
         usuarioSocioId: true,
         usuarioSocio: {
-          select: { dni: true }
+          select: { dni: true, nombre: true }
         }
       },
       orderBy: [{ fecha: 'desc' }, { horaInicio: 'asc' }],
@@ -153,6 +177,9 @@ export async function GET(request: NextRequest) {
 // DELETE para cancelar una reserva (elimina el turno)
 export async function DELETE(request: NextRequest) {
   try {
+    const authCheck = await checkAdminRole(request)
+    if (!authCheck.ok) return NextResponse.json({ message: authCheck.message }, { status: authCheck.status })
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ message: 'id requerido' }, { status: 400 })

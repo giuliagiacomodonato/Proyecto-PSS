@@ -12,7 +12,7 @@ type Reserva = {
   horaInicio: string
   reservado: boolean
   usuarioSocioId?: number | null
-  usuarioSocio?: { dni?: string } | null
+  usuarioSocio?: { dni?: string; nombre?: string } | null
 }
 
 type CanchaOption = { id: number; nombre: string }
@@ -58,7 +58,10 @@ export default function GestionReservasPage() {
       if (fecha) params.set('fecha', fecha)
       params.set('limit', String(pageSize))
       params.set('offset', String((requestedPage - 1) * pageSize))
-      const res = await fetch('/api/reservas?' + params.toString())
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: any = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/reservas?' + params.toString(), { headers })
       if (!res.ok) throw new Error('Error al cargar reservas')
       const data = await res.json()
       setTurnos(data.turnos || [])
@@ -73,12 +76,76 @@ export default function GestionReservasPage() {
     }
   }
 
+  // Cargar disponibilidad: obtiene horarios configurados y los combina con reservas del día
+  async function cargarDisponibilidad() {
+    if (!canchaId || !fecha) return
+    setLoading(true)
+    setMensaje(null)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: any = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      // Obtener horarios configurados para la cancha
+      const resHor = await fetch(`/api/horarios?canchaId=${canchaId}`, { headers })
+      if (!resHor.ok) {
+        const err = await resHor.json().catch(() => ({}))
+        throw new Error(err?.message || 'Error al obtener horarios')
+      }
+      const { horarios } = await resHor.json()
+
+      if (!horarios || horarios.length === 0) {
+        setTurnos([])
+        setTotal(0)
+        setMensaje('Esta cancha no está habilitada para alquileres en la fecha seleccionada')
+        setMensajeTipo('info')
+        setLoading(false)
+        return
+      }
+
+      // Obtener turnos existentes para la cancha y fecha
+      const params = new URLSearchParams()
+      params.set('canchaId', canchaId)
+      params.set('fecha', fecha)
+      const resTurnos = await fetch('/api/reservas?' + params.toString(), { headers })
+      if (!resTurnos.ok) throw new Error('Error al obtener turnos')
+      const data = await resTurnos.json()
+      const existingTurnos: any[] = data.turnos || []
+
+      // Combinar horarios con turnos existentes
+      const combined = horarios.map((h: any, idx: number) => {
+        const match = existingTurnos.find(t => t.horaInicio === h.horaInicio)
+        return {
+          id: idx + 1,
+          canchaId: Number(canchaId),
+          fecha,
+          horaInicio: h.horaInicio,
+          reservado: Boolean(match?.reservado),
+          usuarioSocio: match?.usuarioSocio ?? null
+        }
+      })
+
+      setTurnos(combined)
+      setTotal(combined.length)
+      setPage(1)
+    } catch (e: any) {
+      console.error(e)
+      setMensaje(e?.message || 'Error cargando disponibilidad')
+      setMensajeTipo('error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function openCancelModal(r: Reserva) { setToCancel(r); setShowConfirm(true) }
 
   async function confirmCancel() {
     if (!toCancel) return
     try {
-      const res = await fetch(`/api/reservas?id=${toCancel.id}`, { method: 'DELETE' })
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const headers: any = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(`/api/reservas?id=${toCancel.id}`, { method: 'DELETE', headers })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || 'Error cancelando')
       // eliminar fila localmente para actualización instantánea
@@ -177,19 +244,19 @@ export default function GestionReservasPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Buscar Cancha</label>
-              <select value={canchaId} onChange={(e)=>setCanchaId(e.target.value)} className="w-full px-3 py-2 border rounded">
+              <label className="block text-sm text-gray-900 mb-1">Buscar Cancha</label>
+              <select value={canchaId} onChange={(e)=>setCanchaId(e.target.value)} className="w-full px-3 py-2 border rounded text-gray-900 placeholder-gray-400">
                 <option value="">Seleccione cancha</option>
                 {canchas.map(c => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Fecha</label>
-              <input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} className="w-full px-3 py-2 border rounded" />
+              <label className="block text-sm text-gray-900 mb-1">Fecha</label>
+              <input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} className="w-full px-3 py-2 border rounded text-gray-900 placeholder-gray-400" />
             </div>
             <div className="flex items-end">
               <button
-                onClick={() => { if (!canchaId || !fecha) { setMensaje('Debe seleccionar cancha y fecha antes de aplicar los filtros'); setMensajeTipo('error'); return } cargarTurnos(1) }}
+                onClick={() => { if (!canchaId || !fecha) { setMensaje('Debe seleccionar cancha y fecha antes de aplicar los filtros'); setMensajeTipo('error'); return } cargarDisponibilidad() }}
                 disabled={!canchaId || !fecha}
                 className={`px-4 py-2 ${(!canchaId || !fecha) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white'} rounded`}
               >
@@ -198,38 +265,39 @@ export default function GestionReservasPage() {
             </div>
           </div>
 
+          {/* Métricas centralizadas en el Dashboard principal (Admin) */}
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-600 border-b">
-                  <th className="py-2">Estado</th>
-                  <th className="py-2">Horario</th>
-                  <th className="py-2">DNI Socio</th>
-                  <th className="py-2">Acciones</th>
-                </tr>
+                  <tr className="text-left text-gray-800 border-b">
+                    <th className="py-2 text-gray-800">Estado</th>
+                    <th className="py-2 text-gray-800">Horario</th>
+                    <th className="py-2 text-gray-800">DNI / Nombre</th>
+                    <th className="py-2 text-gray-800">Acciones</th>
+                  </tr>
               </thead>
               <tbody>
-                {turnos.length === 0 ? (
-                  <tr><td colSpan={4} className="py-4 text-gray-500">No hay reservas</td></tr>
+                {!canchaId || !fecha ? (
+                  <tr><td colSpan={4} className="py-6 text-gray-500">Seleccione una cancha y una fecha para ver la disponibilidad.</td></tr>
+                ) : turnos.length === 0 ? (
+                  <tr><td colSpan={4} className="py-4 text-gray-500">Esta cancha no está habilitada para alquileres en la fecha seleccionada.</td></tr>
                 ) : turnos.map(t => (
                   <tr key={t.id} className="border-b">
-                    <td className="py-2">{getEstadoReserva(t)}</td>
-                    <td className="py-2">{t.horaInicio}</td>
-                    <td className="py-2">{t.usuarioSocio?.dni ?? t.usuarioSocioId ?? '-'}</td>
+                    <td className="py-2">
+                      {t.reservado ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-sm bg-red-100 text-red-800">Reservado</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-sm bg-green-100 text-green-800">Disponible</span>
+                      )}
+                    </td>
+                    <td className="py-2 text-gray-900">{t.horaInicio}</td>
+                    <td className="py-2 text-gray-900">{t.reservado ? `${t.usuarioSocio?.dni ?? '-'}${t.usuarioSocio?.nombre ? ' — ' + t.usuarioSocio.nombre : ''}` : '-'}</td>
                     <td className="py-2">{t.reservado && getEstadoReserva(t) === 'Activa' && <button onClick={()=>openCancelModal(t)} className="inline-flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded"><Trash2 className="w-4 h-4" /> Cancelar</button>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-sm text-gray-600">Mostrando {(page-1)*pageSize + 1} - {Math.min(page*pageSize, total)} de {total}</div>
-            <div className="flex items-center gap-2">
-              <button disabled={page<=1} onClick={()=>cargarTurnos(page-1)} className={`px-3 py-1 rounded ${page<=1 ? 'bg-gray-200 text-gray-400' : 'bg-white border'}`}>Anterior</button>
-              <div className="px-3 py-1">Página {page} / {Math.max(1, Math.ceil(total/pageSize))}</div>
-              <button disabled={page*pageSize >= total} onClick={()=>cargarTurnos(page+1)} className={`px-3 py-1 rounded ${(page*pageSize >= total) ? 'bg-gray-200 text-gray-400' : 'bg-white border'}`}>Siguiente</button>
-            </div>
           </div>
 
           {mensaje && (
