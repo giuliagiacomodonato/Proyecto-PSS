@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
 import { useAdminProtection } from '@/app/hooks/useAdminProtection'
 import Link from 'next/link'
+import { User } from 'lucide-react'
 
 type Usuario = { id: number; nombre: string; dni: string; rol: string }
 
@@ -95,6 +96,18 @@ export default function GrillaUsuariosPage() {
 			<Sidebar />
 			<main className="flex-1 p-8 bg-gray-50">
 				<div className="max-w-6xl mx-auto">
+					<div className="mb-8">
+						<div className="flex items-center justify-between mb-4">
+							<h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+							<div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+								<User className="w-5 h-5 text-gray-600" />
+								<span className="text-sm">Usuario Admin</span>
+							</div>
+						</div>
+						<div className="text-sm text-gray-500 mb-6">Panel Principal &gt; Usuarios</div>
+						<h2 className="text-2xl font-semibold text-gray-800">Grilla de Usuarios</h2>
+					</div>
+
 					{successMessage && (
 						<div className="mb-4 text-green-600">{successMessage}</div>
 					)}
@@ -115,8 +128,7 @@ export default function GrillaUsuariosPage() {
 							</div>
 						</div>
 					)}
-					<h1 className="text-2xl font-bold mb-4">Usuarios</h1>
-
+					
 					<form onSubmit={handleBuscar} className="flex gap-3 items-end mb-4">
 						<div>
 							<label className="block text-sm text-gray-700">Rol</label>

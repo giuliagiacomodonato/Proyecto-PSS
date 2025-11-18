@@ -70,13 +70,26 @@ export async function POST(req: Request) {
 
     const { nombre, dni, fechaNacimiento, email, telefono, contraseña, fechaRegistro } = body
 
-    // Buscar por email o dni en la tabla usuarios
-    const existing = await prisma.usuario.findFirst({
-      where: { OR: [{ email }, { dni }] },
+    // Verificar duplicados de forma más específica
+    const existingEmail = await prisma.usuario.findFirst({
+      where: { email },
     })
 
-    if (existing) {
-      return NextResponse.json({ error: 'Ya existe un usuario con ese email o DNI' }, { status: 409 })
+    const existingDni = await prisma.usuario.findFirst({
+      where: { dni },
+    })
+
+    // Construir errores específicos
+    const duplicateErrors: Record<string, string> = {}
+    if (existingEmail) {
+      duplicateErrors.email = 'Ya existe un usuario con ese email'
+    }
+    if (existingDni) {
+      duplicateErrors.dni = 'Ya existe un usuario con ese DNI'
+    }
+
+    if (Object.keys(duplicateErrors).length > 0) {
+      return NextResponse.json({ errors: duplicateErrors }, { status: 409 })
     }
 
     const hashed = await bcrypt.hash(contraseña, 10)

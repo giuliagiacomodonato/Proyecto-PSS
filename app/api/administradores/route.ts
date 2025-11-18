@@ -72,6 +72,25 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    if (!realizadoPorId) {
+      return NextResponse.json(
+        { error: 'Se requiere el ID del usuario que realiza la baja' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que quien realiza la baja es SUPER_ADMIN
+    const usuarioRealizaBaja = await prisma.usuario.findUnique({
+      where: { id: realizadoPorId }
+    })
+
+    if (!usuarioRealizaBaja || usuarioRealizaBaja.rol !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'No tiene permisos para realizar esta acción. Solo super-administradores pueden dar de baja administradores.' },
+        { status: 403 }
+      )
+    }
+
     // Validar formato de DNI
     if (!/^\d{7,8}$/.test(dni)) {
       return NextResponse.json(
@@ -93,33 +112,6 @@ export async function DELETE(request: NextRequest) {
         { error: 'No se encontró un administrador con ese DNI' },
         { status: 404 }
       )
-    }
-
-    // Buscar usuario que realiza la baja (puede ser null si no se proporciona)
-    let usuarioRealizaBaja = null
-    if (realizadoPorId) {
-      usuarioRealizaBaja = await prisma.usuario.findUnique({
-        where: { id: realizadoPorId }
-      })
-      
-      if (!usuarioRealizaBaja) {
-        // Si no se encuentra, buscar cualquier admin disponible
-        console.log('Usuario especificado no encontrado, buscando cualquier admin...')
-        usuarioRealizaBaja = await prisma.usuario.findFirst({
-          where: { 
-            rol: 'ADMIN',
-            id: { not: administrador.id } // No el mismo que se está eliminando
-          }
-        })
-      }
-    } else {
-      // Si no se proporciona ID, buscar cualquier admin disponible
-      usuarioRealizaBaja = await prisma.usuario.findFirst({
-        where: { 
-          rol: 'ADMIN',
-          id: { not: administrador.id } // No el mismo que se está eliminando
-        }
-      })
     }
 
     // Usar transacción para garantizar atomicidad
@@ -150,18 +142,21 @@ export async function DELETE(request: NextRequest) {
     })
 
     // Enviar correo de notificación al administrador dado de baja
+    console.log('[DELETE /api/administradores] Intentando enviar email a:', administrador.email)
     try {
-      await enviarCorreoBajaUsuario({
+      const resultadoEmail = await enviarCorreoBajaUsuario({
         email: administrador.email,
         nombre: administrador.nombre,
         dni: administrador.dni,
         rol: administrador.rol,
         fechaBaja: resultado.fechaBaja
       })
-      console.log(`Correo de notificación enviado a ${administrador.email}`)
+      console.log('[DELETE /api/administradores] Resultado del envío de email:', resultadoEmail)
+      console.log(`✅ Correo de notificación enviado exitosamente a ${administrador.email}`)
     } catch (emailError) {
       // Log del error pero no fallar la operación
-      console.error('Error al enviar correo de notificación:', emailError)
+      console.error('❌ [DELETE /api/administradores] Error al enviar correo de notificación:', emailError)
+      console.error('Detalles del error:', emailError instanceof Error ? emailError.stack : emailError)
       // La baja ya se realizó, solo falló el correo
     }
 

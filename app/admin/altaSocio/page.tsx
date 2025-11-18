@@ -563,7 +563,7 @@ export default function AltaSocioPage() {
                     name="nombre"
                     value={formData.nombre}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.nombre ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Ingrese nombre completo"
@@ -580,7 +580,7 @@ export default function AltaSocioPage() {
                     name="dni"
                     value={formData.dni}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.dni ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="12345678"
@@ -598,7 +598,7 @@ export default function AltaSocioPage() {
                     value={formData.fechaNacimiento}
                     onChange={handleInputChange}
                     max={new Date().toISOString().split('T')[0]}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.fechaNacimiento ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
@@ -614,7 +614,7 @@ export default function AltaSocioPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="usuario@ejemplo.com"
@@ -631,7 +631,7 @@ export default function AltaSocioPage() {
                     name="direccion"
                     value={formData.direccion}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.direccion ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Ingrese dirección"
@@ -648,7 +648,7 @@ export default function AltaSocioPage() {
                     name="telefono"
                     value={formData.telefono}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.telefono ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="1234567890"
@@ -663,7 +663,7 @@ export default function AltaSocioPage() {
                   <input
                     type="text"
                     value={new Date().toLocaleDateString('es-ES')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700"
                     readOnly
                   />
                 </div>
@@ -677,7 +677,7 @@ export default function AltaSocioPage() {
                     name="contraseña"
                     value={formData.contraseña}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.contraseña ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Mínimo 8 caracteres con mayúscula, minúscula, número y carácter especial"

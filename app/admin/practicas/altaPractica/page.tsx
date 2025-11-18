@@ -332,9 +332,9 @@ export default function AltaPracticaPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
-            <div className="flex items-center gap-2 text-gray-600">
-              <User className="w-5 h-5" />
-              <span>Usuario Admin</span>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
             </div>
           </div>
           
@@ -358,7 +358,7 @@ export default function AltaPracticaPage() {
             {/* Fila 1: Nombre y Descripción */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="nombre" className="block text-sm font-medium text-gray-900 mb-2">
                   Nombre de la Práctica *
                 </label>
                 <input
@@ -366,7 +366,7 @@ export default function AltaPracticaPage() {
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => handleInputChange('nombre', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.nombre ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Ingrese el nombre"
@@ -377,7 +377,7 @@ export default function AltaPracticaPage() {
               </div>
 
               <div>
-                <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="descripcion" className="block text-sm font-medium text-gray-900 mb-2">
                   Descripción
                 </label>
                 <textarea
@@ -386,7 +386,7 @@ export default function AltaPracticaPage() {
                   onChange={(e) => handleInputChange('descripcion', e.target.value)}
                   maxLength={150}
                   rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.descripcion ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Ingrese la descripción"
@@ -405,7 +405,7 @@ export default function AltaPracticaPage() {
             {/* Fila 2: Cupo y Precio */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="cupo" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="cupo" className="block text-sm font-medium text-gray-900 mb-2">
                   Cupo máximo *
                 </label>
                 <input
@@ -413,7 +413,7 @@ export default function AltaPracticaPage() {
                   id="cupo"
                   value={formData.cupo}
                   onChange={(e) => handleInputChange('cupo', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.cupo ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Ingrese el cupo máximo"
@@ -424,7 +424,7 @@ export default function AltaPracticaPage() {
               </div>
 
               <div>
-                <label htmlFor="precio" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="precio" className="block text-sm font-medium text-gray-900 mb-2">
                   Precio *
                 </label>
                 <input
@@ -432,7 +432,7 @@ export default function AltaPracticaPage() {
                   id="precio"
                   value={formData.precio}
                   onChange={(e) => handleInputChange('precio', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.precio ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Ingrese el precio"
@@ -445,7 +445,7 @@ export default function AltaPracticaPage() {
 
             {/* Horarios disponibles */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
+              <label className="block text-sm font-medium text-gray-900 mb-4">
                 Horarios disponibles *
               </label>
               
@@ -455,11 +455,11 @@ export default function AltaPracticaPage() {
                     <select
                       value={horario.dia}
                       onChange={(e) => handleHorarioChange(horario.id, 'dia', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Seleccione día</option>
+                      <option value="" className="text-gray-500">Seleccione día</option>
                       {diasSemana.map(dia => (
-                        <option key={dia.value} value={dia.value}>{dia.label}</option>
+                        <option key={dia.value} value={dia.value} className="text-gray-900">{dia.label}</option>
                       ))}
                     </select>
                   </div>
@@ -468,11 +468,11 @@ export default function AltaPracticaPage() {
                     <select
                       value={horario.horaInicio}
                       onChange={(e) => handleHorarioChange(horario.id, 'horaInicio', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Hora Inicio</option>
+                      <option value="" className="text-gray-500">Hora Inicio</option>
                       {horasDisponibles.map(hora => (
-                        <option key={hora} value={hora}>{hora}</option>
+                        <option key={hora} value={hora} className="text-gray-900">{hora}</option>
                       ))}
                     </select>
                   </div>
@@ -481,11 +481,11 @@ export default function AltaPracticaPage() {
                     <select
                       value={horario.horaFin}
                       onChange={(e) => handleHorarioChange(horario.id, 'horaFin', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Hora Fin</option>
+                      <option value="" className="text-gray-500">Hora Fin</option>
                       {horasDisponibles.map(hora => (
-                        <option key={hora} value={hora}>{hora}</option>
+                        <option key={hora} value={hora} className="text-gray-900">{hora}</option>
                       ))}
                     </select>
                   </div>

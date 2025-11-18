@@ -122,7 +122,18 @@ export default function ConsultarInscripcionesPage() {
       <Sidebar />
       <main className="flex-1 p-8 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-4">Consultar Prácticas</h1>
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+              <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+                <Eye className="w-5 h-5 text-gray-600" />
+                <span className="text-sm">Usuario Admin</span>
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Consultar Prácticas</h2>
+          </div>
 
           {/* Filtros */}
           <div className="flex gap-3 mb-4">

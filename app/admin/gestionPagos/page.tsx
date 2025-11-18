@@ -212,7 +212,20 @@ function GestionPagosContent() {
 		<div className="flex min-h-screen bg-gray-50">
 			<Sidebar />
 			<main className="flex-1 p-6">
-				<h1 className="text-2xl font-semibold mb-4">Gestión de Pagos</h1>
+				{/* Header */}
+				<div className="mb-6">
+					<div className="flex items-center justify-between mb-4">
+						<h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+						<div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+							<svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+							</svg>
+							<span className="text-sm">Usuario Admin</span>
+						</div>
+					</div>
+					
+					<h2 className="text-2xl font-semibold text-gray-800">Gestión de Pagos</h2>
+				</div>
 
 				<div className="bg-white p-4 rounded-md shadow mb-6">
 					<div className="grid grid-cols-3 gap-3 items-end">
