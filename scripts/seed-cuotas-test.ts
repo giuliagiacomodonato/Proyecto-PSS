@@ -62,7 +62,6 @@ async function main() {
           estado: 'PAGADO',
           fechaPago: lastMonth,
           metodoPago: 'TARJETA_CREDITO',
-          last4: '4242',
         },
       })
 

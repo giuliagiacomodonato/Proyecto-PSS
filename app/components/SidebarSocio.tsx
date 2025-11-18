@@ -63,7 +63,8 @@ export default function SidebarSocio() {
       label: 'Pagos',
       subItems: [
         { label: 'Cuota Socio', href: '/socio/pagoCuotaSocio' },
-        { label: 'Cuota Practica', href: '/socio/pagoSocio?tipo=practica' }
+        { label: 'Cuota Practica', href: '/socio/pagoSocio?tipo=practica' },
+        { label: 'Historial de Pagos', href: '/socio/historial-pagos' }
       ]
     },
     {

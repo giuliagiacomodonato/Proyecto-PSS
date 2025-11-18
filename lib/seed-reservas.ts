@@ -11,6 +11,7 @@ async function crearReservas() {
       nombre: 'Fútbol 5 - Cancha 1',
       precio: 2000,
       tipo: 'FUTBOL_5'
+      ,ubicacion: 'Sede Central'
     }
   })
 
@@ -21,6 +22,7 @@ async function crearReservas() {
       nombre: 'Básquet - Cancha 1',
       precio: 1500,
       tipo: 'BASQUET'
+      ,ubicacion: 'Sede Central'
     }
   })
 

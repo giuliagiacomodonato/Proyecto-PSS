@@ -60,6 +60,9 @@ export default function PagoSocio() {
   const [cuotaInfo, setCuotaInfo] = useState<CuotaInfo | null>(null)
   const [cuotasPractica, setCuotasPractica] = useState<CuotaPractica[]>([])
   const [selectedCuotas, setSelectedCuotas] = useState<Set<number>>(new Set())
+  const [pagoCuotaData, setPagoCuotaData] = useState<any | null>(null)
+  const [pagoExitoso, setPagoExitoso] = useState<any | null>(null)
+  const [showComprobante, setShowComprobante] = useState(false)
 
   useEffect(() => {
     // Obtener el usuarioSocioId del localStorage
@@ -371,7 +374,7 @@ export default function PagoSocio() {
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Cuotas a pagar:</h3>
             <ul className="space-y-1">
-              {pagoCuotaData.cuotas.map((cuota) => (
+              {pagoCuotaData.cuotas.map((cuota: any) => (
                 <li key={cuota.id} className="text-sm text-gray-600 flex justify-between">
                   <span>{cuota.periodo}</span>
                   <span className="font-medium">${cuota.monto.toLocaleString('es-AR')}</span>

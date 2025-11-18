@@ -199,3 +199,73 @@ export async function enviarCorreoBajaPractica({ email, nombre, dni = '', practi
 	}
 }
 
+interface EmailBajaUsuarioParams {
+	email: string
+	nombre: string
+	dni?: string
+	rol?: string
+	fechaBaja?: Date | string
+}
+
+/**
+ * Envía (o simula) un correo informando la baja de un usuario (socio/administrador)
+ * y crea un registro en EmailLog con tipo 'BAJA_USUARIO'.
+ */
+export async function enviarCorreoBajaUsuario({ email, nombre, dni = '', rol = 'USUARIO', fechaBaja }: EmailBajaUsuarioParams) {
+	const fechaText = fechaBaja ? (typeof fechaBaja === 'string' ? fechaBaja : new Date(fechaBaja).toLocaleDateString('es-AR')) : ''
+	const subject = 'Notificación de baja de usuario - Club Deportivo'
+	const text = `Hola ${nombre},\n\nLe informamos que su cuenta ha sido dada de baja.\n${rol ? `Rol: ${rol}\n` : ''}${fechaText ? `Fecha de baja: ${fechaText}\n` : ''}${dni ? `DNI: ${dni}\n` : ''}\n\nSi necesita asistencia, contacte con Administración.`
+	const html = `<!doctype html><html><body><h2>Club Deportivo</h2><p>Hola <strong>${nombre}</strong>,</p><p>Le informamos que su cuenta ha sido dada de baja.</p><div>${rol ? `<div>Rol: ${rol}</div>` : ''}${fechaText ? `<div>Fecha de baja: ${fechaText}</div>` : ''}${dni ? `<div>DNI: ${dni}</div>` : ''}</div><p>Si necesita asistencia, contacte con Administración.</p><p>Saludos,<br/>Administración Club Deportivo</p></body></html>`
+
+	const mailOptions = {
+		from: process.env.SMTP_FROM ?? `"Club Deportivo" <${_defaultFrom ?? 'no-reply@clubdeportivo.local'}>`,
+		to: email,
+		subject,
+		text,
+		html,
+	}
+
+	try {
+		const t = await getTransporter()
+		const info = await t.sendMail(mailOptions)
+		const preview = nodemailer.getTestMessageUrl(info) ?? null
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					messageId: info.messageId,
+					previewUrl: preview,
+					status: 'SENT',
+					tipo: 'BAJA_USUARIO',
+				},
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (SENT BAJA_USUARIO):', dbErr)
+		}
+
+		return { success: true, messageId: info.messageId }
+	} catch (err) {
+		console.error('Error enviando correo de baja usuario:', err)
+		try {
+			await (prisma as any).emailLog.create({
+				data: {
+					toAddress: email,
+					subject,
+					bodyText: text,
+					bodyHtml: html,
+					status: 'ERROR',
+					error: err instanceof Error ? err.message : String(err),
+					tipo: 'BAJA_USUARIO',
+				},
+			})
+		} catch (dbErr) {
+			console.error('No se pudo guardar EmailLog (ERROR BAJA_USUARIO):', dbErr)
+		}
+
+		return { success: false, error: err instanceof Error ? err.message : String(err) }
+	}
+}
+
