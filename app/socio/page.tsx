@@ -277,10 +277,22 @@ export default function SocioPage() {
                     {cuotas && cuotas.length > 0 && (
                       <>
                         {cuotas.map((cuota) => (
-                          <Link
+                          <button
                             key={cuota.id}
-                            href="/socio/pagoSocio?tipo=CUOTA_MENSUAL"
-                            className="px-6 py-4 hover:bg-gray-50 transition-colors block group"
+                            onClick={() => {
+                              // Guardar la cuota seleccionada en sessionStorage
+                              sessionStorage.setItem('pagoCuotaPendiente', JSON.stringify({
+                                cuotas: [{
+                                  id: cuota.id,
+                                  periodo: cuota.tipo,
+                                  monto: cuota.monto
+                                }],
+                                total: cuota.monto,
+                                tipoUsuario: 'SOCIO'
+                              }))
+                              router.push('/socio/pagoSocio?tipo=CUOTA_MENSUAL')
+                            }}
+                            className="w-full px-6 py-4 hover:bg-gray-50 transition-colors block group text-left"
                           >
                             <div className="flex items-center justify-between mb-2">
                               <p className="font-medium text-gray-900">{cuota.tipo}</p>
@@ -298,7 +310,7 @@ export default function SocioPage() {
                             </div>
                             <p className="text-sm text-gray-500">Vencimiento: {cuota.vencimiento}</p>
                             <p className="text-lg font-semibold text-gray-900 mt-2">${cuota.monto.toLocaleString('es-AR')}</p>
-                          </Link>
+                          </button>
                         ))}
                       </>
                     )}

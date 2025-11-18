@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { titular, last4, monto, tipo, usuarioSocioId, turnoId, cuotaId, inscripcionId, inscripcionIds, cuotasSeleccionadas, metodoPago } = body
+    const { titular, last4, monto, tipo, usuarioSocioId, turnoId, cuotaId, inscripcionId, inscripcionIds, cuotasSeleccionadas, cuotaIds, metodoPago } = body
 
     if (!titular || !last4 || !monto || !tipo || !usuarioSocioId) {
       return NextResponse.json({ error: 'Faltan datos del pago.' }, { status: 400 })
@@ -17,6 +17,33 @@ export async function POST(request: Request) {
       // aprobado
     } else  {
       return NextResponse.json({ error: 'El pago fue rechazado. Por favor, verifica los datos o intenta con otra tarjeta.' }, { status: 402 })
+    }
+
+    // Si es CUOTA_MENSUAL con múltiples cuotas, crear un pago por cada una
+    if (tipo === 'CUOTA_MENSUAL' && cuotaIds && Array.isArray(cuotaIds) && cuotaIds.length > 0) {
+      const comprobante = `tok_mock_${Date.now()}`
+      const montoPorCuota = monto / cuotaIds.length
+      
+      // Crear un pago por cada cuota
+      for (const cuotaIdItem of cuotaIds) {
+        const pagoData: any = {
+          usuarioSocioId: usuarioSocioId,
+          tipoPago: tipo,
+          monto: montoPorCuota,
+          metodoPago: metodoPago || 'TARJETA_CREDITO',
+          estado: 'PAGADO',
+          comprobante: comprobante,
+          cuotaId: cuotaIdItem
+        }
+        
+        await prisma.pago.create({ data: pagoData })
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        token: comprobante,
+        pagoId: comprobante
+      })
     }
 
     // Si es CUOTA_PRACTICA con cuotas seleccionadas, crear un pago por cada una

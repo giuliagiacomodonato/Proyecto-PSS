@@ -264,6 +264,11 @@ export default function PagoSocio() {
         payload.cuotasSeleccionadas = cuotasSeleccionadas
       }
       
+      // Si es CUOTA_MENSUAL y hay datos de cuotas en sessionStorage, enviar los IDs
+      if (tipo === 'CUOTA_MENSUAL' && pagoCuotaData && pagoCuotaData.cuotas) {
+        payload.cuotaIds = pagoCuotaData.cuotas.map((c: any) => c.id)
+      }
+      
       const res = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) {
