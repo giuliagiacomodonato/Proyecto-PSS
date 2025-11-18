@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
-import { Check } from 'lucide-react'
+import { Check, User } from 'lucide-react'
 
 // Página de administración para modificar el precio base de la cuota de socios.
 // - Carga el valor actual desde GET /api/config/cuota
@@ -76,7 +76,15 @@ export default function ModificarCuota() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <main className="flex-1 p-8">
-        <div className="mb-4">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm">Usuario Admin</span>
+            </div>
+          </div>
+          <div className="text-sm text-gray-500 mb-6">Panel Principal &gt; Precios &gt; Cuota Socio</div>
           <h2 className="text-2xl font-semibold text-gray-800">Cuota Socio</h2>
         </div>
 
@@ -89,7 +97,7 @@ export default function ModificarCuota() {
               placeholder="[editable]"
               value={precio}
               onChange={(e) => setPrecio(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-40 px-3 py-2 border rounded text-right"
+              className="w-40 px-3 py-2 border rounded text-right text-gray-900"
             />
           </div>
 

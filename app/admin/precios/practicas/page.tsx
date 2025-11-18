@@ -28,7 +28,7 @@ export default function ModifPrecios() {
         const usuarioGuardado = localStorage.getItem('usuario')
         if (usuarioGuardado) {
           const usuarioData = JSON.parse(usuarioGuardado)
-          if (usuarioData.rol !== 'ADMIN') {
+          if (usuarioData.rol !== 'ADMIN' && usuarioData.rol !== 'SUPER_ADMIN') {
             router.push('/')
             return
           }

@@ -455,7 +455,7 @@ export default function AltaCanchaPage() {
           {/* Primera fila: Nombre */}
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-600 mb-2">
+              <label htmlFor="nombre" className="block text-sm font-medium text-gray-900 mb-2">
                 Nombre de Cancha <span className="text-red-500">*</span>
               </label>
               <input
@@ -465,7 +465,7 @@ export default function AltaCanchaPage() {
                 value={formData.nombre}
                 onChange={handleInputChange}
                 placeholder="Ingrese el nombre"
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.nombre ? 'border-red-500' : ''
                 }`}
               />
@@ -477,7 +477,7 @@ export default function AltaCanchaPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Tipo */}
             <div>
-              <label htmlFor="tipo" className="block text-sm font-medium text-gray-600 mb-2">
+              <label htmlFor="tipo" className="block text-sm font-medium text-gray-900 mb-2">
                 Tipo <span className="text-red-500">*</span>
               </label>
               <select
@@ -486,16 +486,16 @@ export default function AltaCanchaPage() {
                 value={formData.tipo}
                 onChange={handleInputChange}
                 disabled={loadingTipos}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
                   errors.tipo ? 'border-red-500' : ''
                 }`}
                 style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
               >
-                <option value="">
+                <option value="" className="text-gray-500">
                   {loadingTipos ? 'Cargando tipos...' : 'Seleccione un tipo'}
                 </option>
                 {tiposCancha.map((tipo) => (
-                  <option key={tipo} value={tipo}>
+                  <option key={tipo} value={tipo} className="text-gray-900">
                     {formatTipoLabel(tipo)}
                   </option>
                 ))}
@@ -505,7 +505,7 @@ export default function AltaCanchaPage() {
 
             {/* Ubicación */}
             <div>
-              <label htmlFor="ubicacion" className="block text-sm font-medium text-gray-600 mb-2">
+              <label htmlFor="ubicacion" className="block text-sm font-medium text-gray-900 mb-2">
                 Ubicación <span className="text-red-500">*</span>
               </label>
               <input
@@ -516,7 +516,7 @@ export default function AltaCanchaPage() {
                 onChange={handleInputChange}
                 placeholder="Ingrese la ubicación"
                 maxLength={100}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.ubicacion ? 'border-red-500' : ''
                 }`}
               />
@@ -527,7 +527,7 @@ export default function AltaCanchaPage() {
           {/* Tercera fila: Precio */}
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <label htmlFor="precio" className="block text-sm font-medium text-gray-600 mb-2">
+              <label htmlFor="precio" className="block text-sm font-medium text-gray-900 mb-2">
                 Precio (solo dígitos) <span className="text-red-500">*</span>
               </label>
               <input
@@ -537,7 +537,7 @@ export default function AltaCanchaPage() {
                 value={formData.precio}
                 onChange={handleInputChange}
                 placeholder="Ingrese el precio (solo números)"
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.precio ? 'border-red-500' : ''
                 }`}
               />
@@ -548,7 +548,7 @@ export default function AltaCanchaPage() {
 
           {/* Cuarta fila: Horarios múltiples */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Horarios disponibles <span className="text-red-500">*</span>
             </label>
             <div className="space-y-4">
@@ -559,14 +559,14 @@ export default function AltaCanchaPage() {
                     <select
                       value={horario.inicio}
                       onChange={(e) => actualizarHorario(index, 'inicio', e.target.value)}
-                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
                         errors.horarios ? 'border-red-500' : ''
                       }`}
                       style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
                     >
-                      <option value="">Hora Inicio</option>
+                      <option value="" className="text-gray-500">Hora Inicio</option>
                       {opcionesHorarios.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        <option key={option.value} value={option.value} className="text-gray-900">
                           {option.label}
                         </option>
                       ))}
@@ -576,14 +576,14 @@ export default function AltaCanchaPage() {
                     <select
                       value={horario.fin}
                       onChange={(e) => actualizarHorario(index, 'fin', e.target.value)}
-                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
                         errors.horarios ? 'border-red-500' : ''
                       }`}
                       style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
                     >
-                      <option value="">Hora Fin</option>
+                      <option value="" className="text-gray-500">Hora Fin</option>
                       {opcionesHorarios.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        <option key={option.value} value={option.value} className="text-gray-900">
                           {option.label}
                         </option>
                       ))}
