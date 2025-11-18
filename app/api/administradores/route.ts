@@ -150,18 +150,21 @@ export async function DELETE(request: NextRequest) {
     })
 
     // Enviar correo de notificación al administrador dado de baja
+    console.log('[DELETE /api/administradores] Intentando enviar email a:', administrador.email)
     try {
-      await enviarCorreoBajaUsuario({
+      const resultadoEmail = await enviarCorreoBajaUsuario({
         email: administrador.email,
         nombre: administrador.nombre,
         dni: administrador.dni,
         rol: administrador.rol,
         fechaBaja: resultado.fechaBaja
       })
-      console.log(`Correo de notificación enviado a ${administrador.email}`)
+      console.log('[DELETE /api/administradores] Resultado del envío de email:', resultadoEmail)
+      console.log(`✅ Correo de notificación enviado exitosamente a ${administrador.email}`)
     } catch (emailError) {
       // Log del error pero no fallar la operación
-      console.error('Error al enviar correo de notificación:', emailError)
+      console.error('❌ [DELETE /api/administradores] Error al enviar correo de notificación:', emailError)
+      console.error('Detalles del error:', emailError instanceof Error ? emailError.stack : emailError)
       // La baja ya se realizó, solo falló el correo
     }
 
