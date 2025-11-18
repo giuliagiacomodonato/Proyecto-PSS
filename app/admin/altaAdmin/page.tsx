@@ -190,6 +190,8 @@ export default function AltaAdminPage() {
     if (!validateForm()) return
 
     setLoading(true)
+    setErrors({}) // Limpiar errores previos
+    
     try {
       const res = await fetch('/api/admins', {
         method: 'POST',
@@ -203,11 +205,10 @@ export default function AltaAdminPage() {
         // Si el backend devolvió errores por campo, mapéalos al state para mostrarlos inline
         if (data?.errors && typeof data.errors === 'object') {
           setErrors(data.errors)
-          return
+        } else {
+          // Mostrar error general
+          setErrors({ general: data.error || data.message || 'Error al registrar administrador' })
         }
-
-        // Mostrar error general
-        setErrors({ general: data.error || data.message || 'Error al registrar administrador' })
         return
       }
 
@@ -228,6 +229,7 @@ export default function AltaAdminPage() {
         setErrors({})
       }, 3000)
     } catch (err) {
+      console.error('Error al registrar administrador:', err)
       setErrors({ general: err instanceof Error ? err.message : 'Error al registrar administrador' })
     } finally {
       setLoading(false)

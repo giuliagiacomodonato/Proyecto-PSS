@@ -26,7 +26,7 @@ interface MenuItem {
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const [openMenus, setOpenMenus] = useState<string[]>(['Socios'])
+  const [openMenus, setOpenMenus] = useState<string[]>([])
   const [rolUsuario, setRolUsuario] = useState<string | null>(null)
 
   // Leer rol del usuario desde localStorage (cliente)
@@ -72,7 +72,7 @@ export default function Sidebar() {
       subItems: [
         { label: 'Registrar Entrenador', href: '/admin/altaEntrenador' },
         { label: 'Modificar Entrenador', href: '/admin/modifEntrenador' },
-        { label: 'Eliminar Entrenador', href: '/admin/entrenadores/eliminar' }
+        { label: 'Eliminar Entrenador', href: '/admin/bajaEntrenador' }
       ]
     },
     {
@@ -138,9 +138,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-80 bg-white min-h-screen p-4 border-r border-gray-200 flex flex-col">
+    <aside className="w-80 bg-white h-screen p-4 border-r border-gray-200 flex flex-col overflow-y-auto">
       {/* Menu Items */}
-      <nav className="space-y-2 flex-1">
+      <nav className="space-y-2 flex-1 overflow-y-auto">
         {menuItems.map((item) => {
           // Ocultar el menú 'Administrador' para usuarios que no son SUPER_ADMIN
           if (item.label === 'Administrador' && rolUsuario !== 'SUPER_ADMIN') {
@@ -203,13 +203,15 @@ export default function Sidebar() {
         })}
       </nav>
       {/* Botón cerrar sesión */}
-      <button
-        onClick={handleLogout}
-        className="w-full flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors mt-auto border-t border-gray-200 pt-4"
-      >
-        <LogOut size={20} />
-        <span>Cerrar sesión</span>
-      </button>
+      <div className="mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <LogOut size={20} />
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
     </aside>
   )
 }

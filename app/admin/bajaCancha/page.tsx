@@ -24,7 +24,8 @@ export default function BajaCanchaPage() {
   const [loading, setLoading] = useState(false)
   const [loadingCanchas, setLoadingCanchas] = useState(true)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [mensajeTipo, setMensajeTipo] = useState<'success' | 'error' | 'info'>('info')
 
   // Cargar canchas al montar el componente
   useEffect(() => {
@@ -43,7 +44,8 @@ export default function BajaCanchaPage() {
       const data = await response.json()
       setCanchas(data.canchas || [])
     } catch (error) {
-      console.error('Error al cargar canchas:', error)
+      setMensaje('Error al cargar las canchas')
+      setMensajeTipo('error')
     } finally {
       setLoadingCanchas(false)
     }
@@ -64,7 +66,8 @@ export default function BajaCanchaPage() {
   // Abrir modal de confirmación
   const handleConfirmarBaja = () => {
     if (!canchaSeleccionada) {
-      console.error('Debe seleccionar una cancha')
+      setMensaje('Debe seleccionar una cancha')
+      setMensajeTipo('error')
       return
     }
     setShowConfirmModal(true)
@@ -93,8 +96,9 @@ export default function BajaCanchaPage() {
       // Cerrar modal de confirmación
       setShowConfirmModal(false)
 
-      // Mostrar mensaje de éxito al lado del botón
-      setSuccessMessage('¡Cancha eliminada exitosamente!')
+      // Mostrar mensaje de éxito
+      setMensaje('¡Cancha eliminada exitosamente!')
+      setMensajeTipo('success')
       
       // Limpiar formulario
       setCanchaId('')
@@ -111,7 +115,11 @@ export default function BajaCanchaPage() {
     } catch (error) {
       // Cerrar modal de confirmación en caso de error
       setShowConfirmModal(false)
-      console.error('Error al eliminar cancha:', error)
+      
+      setMensaje(
+        error instanceof Error ? error.message : 'Error al eliminar cancha'
+      )
+      setMensajeTipo('error')
     } finally {
       setLoading(false)
     }
@@ -160,6 +168,17 @@ export default function BajaCanchaPage() {
 
           <h2 className="text-2xl font-semibold text-gray-800">Eliminar Cancha</h2>
         </div>
+
+        {/* Mensaje de estado */}
+        {mensaje && (
+          <div className={`mb-6 p-4 rounded-md max-w-2xl ${
+            mensajeTipo === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+            mensajeTipo === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+            'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}>
+            <p className="text-sm font-medium">{mensaje}</p>
+          </div>
+        )}
 
         {/* Formulario */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-2xl">
@@ -220,22 +239,15 @@ export default function BajaCanchaPage() {
             >
               Cancelar
             </button>
-            <div className="flex-1 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleConfirmarBaja}
-                disabled={!canchaSeleccionada || loading}
-                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Trash2 className="w-5 h-5" />
-                Confirmar Baja
-              </button>
-              {successMessage && (
-                <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg whitespace-nowrap">
-                  ✓ {successMessage}
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={handleConfirmarBaja}
+              disabled={!canchaSeleccionada || loading}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-5 h-5" />
+              Confirmar Baja
+            </button>
           </div>
         </div>
       </main>
@@ -300,7 +312,6 @@ export default function BajaCanchaPage() {
           </div>
         </div>
       )}
-
     </div>
   )
 }

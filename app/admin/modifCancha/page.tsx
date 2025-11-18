@@ -260,18 +260,27 @@ export default function ModifCanchaPage() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <main className="flex-1 p-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Modificar Cancha</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Gestor Club Deportivo</h1>
+            <div className="flex items-center gap-2 text-gray-600 bg-white px-3 py-2 rounded-full border border-gray-200">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm text-gray-900">Usuario Admin</span>
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Modificar Cancha</h2>
           <p className="text-sm text-gray-600">Seleccione una cancha y modifique sus datos</p>
         </div>
 
         <div className="bg-white rounded-lg p-6 shadow max-w-4xl">
           <div className="mb-6">
-            <label className="block text-sm text-gray-700 mb-2">Seleccionar Cancha</label>
-            <select value={selectedId} onChange={(e) => handleSelect(e.target.value)} className="w-full px-3 py-2 border rounded">
-              <option value="">-- Seleccione --</option>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Seleccionar Cancha</label>
+            <select value={selectedId} onChange={(e) => handleSelect(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="" className="text-gray-500">-- Seleccione una cancha --</option>
               {canchas.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
+                <option key={c.id} value={c.id} className="text-gray-900">{c.nombre}</option>
               ))}
             </select>
           </div>
@@ -279,52 +288,52 @@ export default function ModifCanchaPage() {
           {selectedId && (
             <form onSubmit={(e) => { e.preventDefault(); handleGuardar() }} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-700">Nombre (no editable)</label>
-                <input readOnly value={original?.nombre || ''} className="mt-1 p-2 border rounded w-full bg-gray-100" />
+                <label className="block text-sm font-medium text-gray-900 mb-1">Nombre (no editable)</label>
+                <input readOnly value={original?.nombre || ''} className="mt-1 p-2 border border-gray-300 rounded w-full bg-gray-100 text-gray-700" />
               </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700">Tipo</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Tipo</label>
                   <select
                     value={tipo}
                     onChange={(e) => setTipo(e.target.value)}
                     disabled={loadingTipos}
-                    className={`mt-1 p-2 border rounded w-full ${errors.tipo ? 'border-red-500' : ''}`}
+                    className={`mt-1 p-2 border rounded w-full text-gray-900 bg-white ${errors.tipo ? 'border-red-500' : 'border-gray-300'}`}
                   >
-                    <option value="">{loadingTipos ? 'Cargando tipos...' : 'Seleccione un tipo'}</option>
+                    <option value="" className="text-gray-500">{loadingTipos ? 'Cargando tipos...' : 'Seleccione un tipo'}</option>
                     {tiposCancha.map(t => (
-                      <option key={t} value={t}>{formatTipoLabel(t)}</option>
+                      <option key={t} value={t} className="text-gray-900">{formatTipoLabel(t)}</option>
                     ))}
                   </select>
                   {errors.tipo && <p className="text-xs text-red-600">{errors.tipo}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-700">Ubicación</label>
-                  <input value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className={`mt-1 p-2 border rounded w-full ${errors.ubicacion ? 'border-red-500' : ''}`} />
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Ubicación</label>
+                  <input value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className={`mt-1 p-2 border rounded w-full text-gray-900 ${errors.ubicacion ? 'border-red-500' : 'border-gray-300'}`} placeholder="Ej: Cancha Principal" />
                   {errors.ubicacion && <p className="text-xs text-red-600">{errors.ubicacion}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700">Precio</label>
-                <input value={precio} onChange={(e) => { if (e.target.value === '' || /^\d+$/.test(e.target.value)) setPrecio(e.target.value) }} className={`mt-1 p-2 border rounded w-48 ${errors.precio ? 'border-red-500' : ''}`} />
+                <label className="block text-sm font-medium text-gray-900 mb-1">Precio</label>
+                <input value={precio} onChange={(e) => { if (e.target.value === '' || /^\d+$/.test(e.target.value)) setPrecio(e.target.value) }} className={`mt-1 p-2 border rounded w-48 text-gray-900 ${errors.precio ? 'border-red-500' : 'border-gray-300'}`} placeholder="0" />
                 {errors.precio && <p className="text-xs text-red-600">{errors.precio}</p>}
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700 mb-2">Horarios disponibles</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">Horarios disponibles</label>
                 <div className="space-y-3">
                   {horarios.map((h, idx) => (
                     <div key={idx} className="flex items-center gap-3">
-                      <select value={h.inicio} onChange={(e) => actualizarHorario(idx, 'inicio', e.target.value)} className="p-2 border rounded">
-                        <option value="">Inicio</option>
-                        {opcionesHorarios.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      <select value={h.inicio} onChange={(e) => actualizarHorario(idx, 'inicio', e.target.value)} className="p-2 border border-gray-300 rounded text-gray-900">
+                        <option value="" className="text-gray-500">Inicio</option>
+                        {opcionesHorarios.map(o => <option key={o.value} value={o.value} className="text-gray-900">{o.label}</option>)}
                       </select>
-                      <select value={h.fin} onChange={(e) => actualizarHorario(idx, 'fin', e.target.value)} className="p-2 border rounded">
-                        <option value="">Fin</option>
-                        {opcionesHorarios.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      <select value={h.fin} onChange={(e) => actualizarHorario(idx, 'fin', e.target.value)} className="p-2 border border-gray-300 rounded text-gray-900">
+                        <option value="" className="text-gray-500">Fin</option>
+                        {opcionesHorarios.map(o => <option key={o.value} value={o.value} className="text-gray-900">{o.label}</option>)}
                       </select>
                       {horarios.length > 1 && (
                         <button type="button" onClick={() => eliminarHorario(idx)} className="p-2 text-red-600 rounded hover:bg-red-50"><X /></button>
@@ -332,7 +341,7 @@ export default function ModifCanchaPage() {
                     </div>
                   ))}
 
-                  <button type="button" onClick={agregarHorario} className="mt-2 inline-flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded text-sm text-gray-600">
+                  <button type="button" onClick={agregarHorario} className="mt-2 inline-flex items-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">
                     <Plus /> Agregar horario
                   </button>
                   {errors.horarios && <p className="text-xs text-red-600 mt-1">{errors.horarios}</p>}

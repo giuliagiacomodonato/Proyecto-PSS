@@ -80,7 +80,16 @@ export default function BajaAdminPage() {
     setErrors({})
 
     try {
-      const response = await fetch(`/api/administradores?dni=${dni}`)
+      // Obtener el ID del usuario autenticado
+      const usuarioRaw = typeof window !== 'undefined' ? localStorage.getItem('usuario') : null
+      let realizadoPorId = null
+      
+      if (usuarioRaw) {
+        const usuario = JSON.parse(usuarioRaw)
+        realizadoPorId = usuario.id
+      }
+
+      const response = await fetch(`/api/administradores?dni=${dni}&realizadoPorId=${realizadoPorId}`)
       const data = await response.json()
 
       if (!response.ok) {
